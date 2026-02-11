@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk } from "next/font/google";
 import Link from "next/link";
+import NavAuth from "./components/nav-auth";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -46,7 +47,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 TRACK<span className="brand-name-accent">SM</span>
               </span>
             </Link>
-            <div className="nav-spacer" aria-hidden="true" />
+            <div className="nav-spacer">
+              <NavAuth />
+            </div>
           </nav>
           {children}
         </div>

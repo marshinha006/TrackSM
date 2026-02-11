@@ -1,13 +1,18 @@
 package main
 
 import (
+    "database/sql"
     "encoding/json"
     "fmt"
     "log"
     "net/http"
+    "os"
     "strconv"
     "strings"
     "sync"
+
+    "golang.org/x/crypto/bcrypt"
+    _ "modernc.org/sqlite"
 )
 
 type Series struct {
@@ -41,6 +46,34 @@ type Store struct {
     mu     sync.RWMutex
     nextID int
     items  []Series
+}
+
+type App struct {
+    store *Store
+    db    *sql.DB
+}
+
+type RegisterInput struct {
+    Name     string `json:"name"`
+    Email    string `json:"email"`
+    Password string `json:"password"`
+}
+
+type RegisterResponse struct {
+    ID    int64  `json:"id"`
+    Name  string `json:"name"`
+    Email string `json:"email"`
+}
+
+type LoginInput struct {
+    Email    string `json:"email"`
+    Password string `json:"password"`
+}
+
+type LoginResponse struct {
+    ID    int64  `json:"id"`
+    Name  string `json:"name"`
+    Email string `json:"email"`
 }
 
 func NewStore() *Store {
@@ -80,22 +113,177 @@ func NewStore() *Store {
 
 func main() {
     store := NewStore()
+    db, err := openDatabase()
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer db.Close()
+
+    if err := ensureUsersTable(db); err != nil {
+        log.Fatal(err)
+    }
+
+    app := &App{store: store, db: db}
     mux := http.NewServeMux()
 
     mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
         writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
     })
 
-    mux.HandleFunc("GET /api/series", store.handleListSeries)
-    mux.HandleFunc("POST /api/series", store.handleCreateSeries)
-    mux.HandleFunc("PATCH /api/series/", store.handlePatchSeries)
-    mux.HandleFunc("DELETE /api/series/", store.handleDeleteSeries)
+    mux.HandleFunc("GET /api/series", app.store.handleListSeries)
+    mux.HandleFunc("POST /api/series", app.store.handleCreateSeries)
+    mux.HandleFunc("PATCH /api/series/", app.store.handlePatchSeries)
+    mux.HandleFunc("DELETE /api/series/", app.store.handleDeleteSeries)
+    mux.HandleFunc("POST /api/auth/register", app.handleRegister)
+    mux.HandleFunc("POST /api/auth/login", app.handleLogin)
 
     addr := ":8080"
     log.Printf("API running on http://localhost%s", addr)
     if err := http.ListenAndServe(addr, cors(mux)); err != nil {
         log.Fatal(err)
     }
+}
+
+func openDatabase() (*sql.DB, error) {
+    dbPath := envOrDefault("DB_PATH", "tracksm.db")
+    db, err := sql.Open("sqlite", dbPath)
+    if err != nil {
+        return nil, fmt.Errorf("failed opening sqlite: %w", err)
+    }
+
+    if err := db.Ping(); err != nil {
+        return nil, fmt.Errorf("failed pinging sqlite: %w", err)
+    }
+
+    return db, nil
+}
+
+func ensureUsersTable(db *sql.DB) error {
+    query := `
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        email TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    `
+
+    if _, err := db.Exec(query); err != nil {
+        return fmt.Errorf("failed creating users table: %w", err)
+    }
+
+    return nil
+}
+
+func (a *App) handleRegister(w http.ResponseWriter, r *http.Request) {
+    var in RegisterInput
+    if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+        writeError(w, http.StatusBadRequest, "invalid json body")
+        return
+    }
+
+    in.Name = strings.TrimSpace(in.Name)
+    in.Email = strings.ToLower(strings.TrimSpace(in.Email))
+
+    if in.Name == "" {
+        writeError(w, http.StatusBadRequest, "name is required")
+        return
+    }
+
+    if in.Email == "" || !strings.Contains(in.Email, "@") {
+        writeError(w, http.StatusBadRequest, "valid email is required")
+        return
+    }
+
+    if len(in.Password) < 6 {
+        writeError(w, http.StatusBadRequest, "password must have at least 6 characters")
+        return
+    }
+
+    hashBytes, err := bcrypt.GenerateFromPassword([]byte(in.Password), bcrypt.DefaultCost)
+    if err != nil {
+        writeError(w, http.StatusInternalServerError, "failed to process password")
+        return
+    }
+
+    result, err := a.db.Exec(
+        "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
+        in.Name,
+        in.Email,
+        string(hashBytes),
+    )
+    if err != nil {
+        if strings.Contains(strings.ToLower(err.Error()), "unique constraint failed: users.email") {
+            writeError(w, http.StatusConflict, "email already registered")
+            return
+        }
+
+        writeError(w, http.StatusInternalServerError, "failed to create user")
+        return
+    }
+
+    id, _ := result.LastInsertId()
+    writeJSON(w, http.StatusCreated, RegisterResponse{
+        ID:    id,
+        Name:  in.Name,
+        Email: in.Email,
+    })
+}
+
+func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
+    var in LoginInput
+    if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+        writeError(w, http.StatusBadRequest, "invalid json body")
+        return
+    }
+
+    in.Email = strings.ToLower(strings.TrimSpace(in.Email))
+
+    if in.Email == "" || in.Password == "" {
+        writeError(w, http.StatusBadRequest, "email and password are required")
+        return
+    }
+
+    var (
+        id           int64
+        name         string
+        email        string
+        passwordHash string
+    )
+
+    err := a.db.QueryRow(
+        "SELECT id, name, email, password_hash FROM users WHERE email = ? LIMIT 1",
+        in.Email,
+    ).Scan(&id, &name, &email, &passwordHash)
+    if err == sql.ErrNoRows {
+        writeError(w, http.StatusUnauthorized, "invalid credentials")
+        return
+    }
+    if err != nil {
+        writeError(w, http.StatusInternalServerError, "failed to authenticate user")
+        return
+    }
+
+    if err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(in.Password)); err != nil {
+        writeError(w, http.StatusUnauthorized, "invalid credentials")
+        return
+    }
+
+    writeJSON(w, http.StatusOK, LoginResponse{
+        ID:    id,
+        Name:  name,
+        Email: email,
+    })
+}
+
+func envOrDefault(key string, fallback string) string {
+    value := strings.TrimSpace(os.Getenv(key))
+    if value == "" {
+        return fallback
+    }
+
+    return value
 }
 
 func (s *Store) handleListSeries(w http.ResponseWriter, r *http.Request) {

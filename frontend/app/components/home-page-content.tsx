@@ -129,7 +129,6 @@ export default async function HomePage() {
 
         <main>
           <header className="header">
-            <p className="subtitle">Filmes e series populares no momento.</p>
           </header>
 
           <section>

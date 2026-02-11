@@ -32,3 +32,26 @@ chromedriver.exe
 # General temp
 *.log
 
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Go build
+bin/
+build/
+dist/
+
+# Test binaries
+*.test
+
+# Coverage
+coverage.out
+
+# SQLite (se for só local)
+*.db
+*.db-shm
+*.db-wal
+
