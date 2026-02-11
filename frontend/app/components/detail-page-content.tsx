@@ -199,7 +199,7 @@ export default async function DetailPage({ params }: { params: Promise<{ mediaTy
   const originalTitle = detail.original_title ?? detail.original_name ?? "";
   const isMovie = tmdbMediaType === "movie";
   const releaseDate = isMovie ? detail.release_date : detail.first_air_date;
-  const genres = detail.genres?.map((g) => g.name).join(" - ") || "Genero indisponivel";
+  const genres = detail.genres ?? [];
   const fillPercent = Math.max(0, Math.min(100, detail.vote_average * 10));
   const trailerKey = isMovie ? selectTrailerKey(detail.videos?.results) : null;
   const streamingProviders = isMovie ? pickStreamingProviders(watchProvidersData) : [];
@@ -245,8 +245,24 @@ export default async function DetailPage({ params }: { params: Promise<{ mediaTy
             {originalTitle && originalTitle !== title ? <p className="detail-original">Titulo original: {originalTitle}</p> : null}
 
             <p className="detail-meta">
-              {formatDate(releaseDate)} - {genres} - {formatRuntime(detail, isMovie)}
+              {formatDate(releaseDate)} - {formatRuntime(detail, isMovie)}
             </p>
+
+            {genres.length ? (
+              <div className="detail-genre-tags" aria-label="Generos">
+                {genres.map((genre) => (
+                  <Link
+                    key={genre.id}
+                    className="genre-chip"
+                    href={`/explorar?mediaType=${tmdbMediaType}&genreId=${genre.id}&genreName=${encodeURIComponent(genre.name)}`}
+                  >
+                    {genre.name}
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="detail-extra">Genero indisponivel</p>
+            )}
 
             <p className="detail-rating">
               <span className="star-meter" aria-hidden="true">
