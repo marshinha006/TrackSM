@@ -19,16 +19,34 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <div className="site-shell">
           <nav className="site-nav" aria-label="Principal">
+            <div className="nav-menu">
+              <Link href="/" className="nav-link">
+                Home
+              </Link>
+              <Link href="/minhas-series" className="nav-link">
+                Minhas series
+              </Link>
+              <Link href="/calendario" className="nav-link">
+                Calendario
+              </Link>
+              <Link href="/explorar" className="nav-link">
+                Explorar
+              </Link>
+            </div>
             <Link href="/" className="brand-link" aria-label="TrackSM - pagina inicial">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 className="brand-logo"
-                src="/logo-with-name.svg"
+                src="/logo-without-name.svg"
                 alt="Logo TrackSM"
-                width={42}
-                height={42}
+                width={34}
+                height={34}
               />
+              <span className="brand-name">
+                TRACK<span className="brand-name-accent">SM</span>
+              </span>
             </Link>
+            <div className="nav-spacer" aria-hidden="true" />
           </nav>
           {children}
         </div>
