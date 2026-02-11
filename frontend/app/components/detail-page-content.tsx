@@ -33,6 +33,7 @@ type TmdbDetail = {
   credits?: {
     cast?: TmdbCast[];
   };
+  seasons?: TmdbSeasonSummary[];
 };
 
 type TmdbVideo = {
@@ -48,6 +49,44 @@ type TmdbCast = {
   name: string;
   character?: string;
   profile_path: string | null;
+};
+
+type TmdbSeasonSummary = {
+  season_number: number;
+  name: string;
+  episode_count: number;
+};
+
+type TmdbSeasonDetail = {
+  id: number;
+  season_number: number;
+  name: string;
+  episodes?: TmdbEpisode[];
+};
+
+type TmdbEpisode = {
+  id: number;
+  name: string;
+  episode_number: number;
+  air_date?: string;
+  still_path: string | null;
+  overview?: string;
+  runtime?: number;
+};
+
+type SeasonPanelData = {
+  seasonNumber: number;
+  seasonName: string;
+  episodeCount: number;
+  episodes: {
+    id: number;
+    name: string;
+    episodeNumber: number;
+    airDate?: string;
+    stillUrl: string | null;
+    overview?: string;
+    runtime?: number;
+  }[];
 };
 
 type TmdbProvider = {
@@ -72,6 +111,7 @@ const TMDB_IMAGE_URL = "https://image.tmdb.org/t/p/w500";
 const TMDB_BACKDROP_URL = "https://image.tmdb.org/t/p/original";
 const TMDB_LOGO_URL = "https://image.tmdb.org/t/p/w92";
 const TMDB_PROFILE_URL = "https://image.tmdb.org/t/p/w185";
+const TMDB_STILL_URL = "https://image.tmdb.org/t/p/w500";
 
 function toTmdbMedia(mediaTypeParam: string): "movie" | "tv" | null {
   if (mediaTypeParam === "filme") return "movie";
@@ -95,6 +135,36 @@ function formatRuntime(data: TmdbDetail, isMovie: boolean): string {
   const episodeMinutes = data.episode_run_time?.[0];
   if (!episodeMinutes) return "Duracao por episodio indisponivel";
   return `${episodeMinutes} min por episodio`;
+}
+
+function formatMinutes(totalMinutes: number): string {
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours <= 0) return `${minutes} min`;
+  return `${hours}h ${minutes}m`;
+}
+
+function formatSeriesRuntime(data: TmdbDetail, seasons: SeasonPanelData[]): string {
+  const episodeMinutes = data.episode_run_time?.[0];
+  const episodeCount = data.number_of_episodes ?? 0;
+
+  if (episodeMinutes && episodeCount > 0) {
+    return `${formatMinutes(episodeMinutes * episodeCount)} total`;
+  }
+
+  const summedRuntime = seasons
+    .flatMap((season) => season.episodes)
+    .reduce((acc, episode) => acc + (episode.runtime ?? 0), 0);
+
+  if (summedRuntime > 0) {
+    return `${formatMinutes(summedRuntime)} total`;
+  }
+
+  if (episodeMinutes) {
+    return `${episodeMinutes} min por episodio`;
+  }
+
+  return "Duracao indisponivel";
 }
 
 async function fetchDetail(tmdbMediaType: "movie" | "tv", id: string): Promise<TmdbDetail> {
@@ -141,6 +211,54 @@ async function fetchWatchProviders(tmdbMediaType: "movie" | "tv", id: string): P
   }
 
   return (await res.json()) as TmdbWatchProvidersResponse;
+}
+
+async function fetchTvSeasons(tvId: string, seasons: TmdbSeasonSummary[] | undefined): Promise<SeasonPanelData[]> {
+  if (!TMDB_API_KEY || !seasons?.length) {
+    return [];
+  }
+
+  const validSeasons = seasons.filter((season) => season.season_number > 0).slice(0, 20);
+  if (!validSeasons.length) return [];
+
+  const details = await Promise.all(
+    validSeasons.map(async (season) => {
+      const params = new URLSearchParams({
+        api_key: TMDB_API_KEY,
+        language: "pt-BR",
+      });
+
+      const res = await fetch(`${TMDB_BASE_URL}/tv/${tvId}/season/${season.season_number}?${params.toString()}`, {
+        next: { revalidate: 1800 },
+      });
+
+      if (!res.ok) {
+        return null;
+      }
+
+      const data = (await res.json()) as TmdbSeasonDetail;
+      return {
+        seasonNumber: season.season_number,
+        seasonName: data.name || season.name || `Temporada ${season.season_number}`,
+        episodeCount: season.episode_count ?? data.episodes?.length ?? 0,
+        episodes:
+          data.episodes?.map((episode) => ({
+            id: episode.id,
+            name: episode.name || `Episodio ${episode.episode_number}`,
+            episodeNumber: episode.episode_number,
+            airDate: episode.air_date,
+            stillUrl: episode.still_path ? `${TMDB_STILL_URL}${episode.still_path}` : null,
+            overview: episode.overview ?? "",
+            runtime: episode.runtime,
+          })) ?? [],
+      } satisfies SeasonPanelData;
+    }),
+  );
+
+  return details.reduce<SeasonPanelData[]>((acc, item) => {
+    if (item) acc.push(item);
+    return acc;
+  }, []);
 }
 
 function selectTrailerKey(videos: TmdbVideo[] | undefined): string | null {
@@ -209,6 +327,8 @@ export default async function DetailPage({ params }: { params: Promise<{ mediaTy
     character: person.character ?? "",
     profileUrl: person.profile_path ? `${TMDB_PROFILE_URL}${person.profile_path}` : null,
   })) ?? [];
+  const seasonsData = !isMovie ? await fetchTvSeasons(id, detail.seasons) : [];
+  const runtimeText = isMovie ? formatRuntime(detail, true) : formatSeriesRuntime(detail, seasonsData);
 
   return (
     <main className="detail-page">
@@ -245,7 +365,7 @@ export default async function DetailPage({ params }: { params: Promise<{ mediaTy
             {originalTitle && originalTitle !== title ? <p className="detail-original">Titulo original: {originalTitle}</p> : null}
 
             <p className="detail-meta">
-              {formatDate(releaseDate)} - {formatRuntime(detail, isMovie)}
+              {formatDate(releaseDate)} - {runtimeText}
             </p>
 
             {genres.length ? (
@@ -318,7 +438,7 @@ export default async function DetailPage({ params }: { params: Promise<{ mediaTy
         </div>
       </section>
 
-      <DetailMenuSections cast={castMembers} mediaType={tmdbMediaType} tmdbId={id} />
+      <DetailMenuSections cast={castMembers} mediaType={tmdbMediaType} tmdbId={id} seasons={seasonsData} />
     </main>
   );
 }
