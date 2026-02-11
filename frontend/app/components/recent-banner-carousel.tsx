@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 type RecentItem = {
@@ -11,6 +12,7 @@ type RecentItem = {
   voteAverage: number;
   releaseDate: string | null;
   mediaLabel: "Filme" | "Serie";
+  mediaType: "filme" | "serie";
 };
 
 type RecentBannerCarouselProps = {
@@ -127,6 +129,7 @@ export default function RecentBannerCarousel({ items }: RecentBannerCarouselProp
                 <div className="recent-carousel-content">
                   <p className="recent-kicker">Novidades da semana</p>
                   <h2 className="recent-title">Recem lançados</h2>
+                  <Link className="recent-feature-link" href={`/detalhe/${item.mediaType}/${item.id}`}>
                   <article className="recent-feature">
                     {thumbUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -150,6 +153,7 @@ export default function RecentBannerCarousel({ items }: RecentBannerCarouselProp
                       </p>
                     </div>
                   </article>
+                  </Link>
                 </div>
               </div>
             );

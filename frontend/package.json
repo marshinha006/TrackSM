@@ -3,7 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "dev": "next dev",
+    "clean": "cmd /c if exist .next rmdir /s /q .next",
+    "dev": "npm run clean && next dev --turbo",
+    "dev:webpack": "npm run clean && next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
