@@ -31,6 +31,15 @@ type SeasonPanelData = {
 };
 
 type ActiveSection = "cast" | "watch" | "seasons" | null;
+type StoredAuth = {
+  id?: number;
+};
+type WatchedItem = {
+  seasonNumber: number;
+  episodeNumber: number;
+};
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 function roleLabel(character: string): "Dublagem" | "Atuacao" {
   const normalized = character.toLowerCase();
@@ -45,6 +54,9 @@ function formatDate(value?: string): string {
 export default function DetailMenuSections({ cast, mediaType, tmdbId, seasons }: DetailMenuSectionsProps) {
   const [activeSection, setActiveSection] = useState<ActiveSection>(null);
   const [selectedSeasonNumber, setSelectedSeasonNumber] = useState<number>(seasons[0]?.seasonNumber ?? 1);
+  const [userId, setUserId] = useState<number | null>(null);
+  const [watchedEpisodeKeys, setWatchedEpisodeKeys] = useState<Set<string>>(new Set());
+  const [episodeToggleLoadingKey, setEpisodeToggleLoadingKey] = useState<string | null>(null);
 
   const castPreview = useMemo(() => cast.slice(0, 16), [cast]);
   const selectedSeason =
@@ -72,6 +84,80 @@ export default function DetailMenuSections({ cast, mediaType, tmdbId, seasons }:
     setSelectedSeasonNumber(seasons[0].seasonNumber);
   }, [tmdbId, seasons]);
 
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("tracksm_auth");
+      if (!raw) {
+        setUserId(null);
+        return;
+      }
+      const parsed = JSON.parse(raw) as StoredAuth;
+      setUserId(typeof parsed.id === "number" ? parsed.id : null);
+    } catch {
+      setUserId(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!userId) {
+      setWatchedEpisodeKeys(new Set());
+      return;
+    }
+
+    if (mediaType !== "tv") return;
+
+    async function loadWatched() {
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/api/user/watched?userId=${userId}&mediaType=${mediaType}&tmdbId=${tmdbId}`,
+        );
+        if (!response.ok) return;
+        const data = (await response.json()) as WatchedItem[];
+
+        const keys = new Set<string>(
+          data
+            .filter((item) => item.seasonNumber > 0 && item.episodeNumber > 0)
+            .map((item) => `${item.seasonNumber}:${item.episodeNumber}`),
+        );
+        setWatchedEpisodeKeys(keys);
+      } catch {
+        // noop
+      }
+    }
+
+    void loadWatched();
+  }, [userId, mediaType, tmdbId]);
+
+  async function toggleEpisodeWatched(seasonNumber: number, episodeNumber: number) {
+    if (!userId || episodeToggleLoadingKey) return;
+    const key = `${seasonNumber}:${episodeNumber}`;
+    setEpisodeToggleLoadingKey(key);
+    const isWatched = watchedEpisodeKeys.has(key);
+    try {
+      const method = isWatched ? "DELETE" : "POST";
+      const response = await fetch(`${API_BASE_URL}/api/user/watched`, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          mediaType: "tv",
+          tmdbId: Number(tmdbId),
+          seasonNumber,
+          episodeNumber,
+        }),
+      });
+      if (!response.ok) return;
+      setWatchedEpisodeKeys((prev) => {
+        const next = new Set(prev);
+        if (isWatched) next.delete(key);
+        else next.add(key);
+        return next;
+      });
+    } finally {
+      setEpisodeToggleLoadingKey(null);
+    }
+  }
+
   return (
     <section className={`detail-menu-wrapper${isExpanded ? " is-open" : ""}`} aria-label="Menu de detalhes">
       <div className="detail-menu-shell">
@@ -90,7 +176,7 @@ export default function DetailMenuSections({ cast, mediaType, tmdbId, seasons }:
             aria-expanded={activeSection === "watch"}
             onClick={() => setActiveSection((prev) => (prev === "watch" ? null : "watch"))}
           >
-            Assistir
+            Assistir agora
           </button>
           {mediaType === "tv" ? (
             <button
@@ -192,6 +278,23 @@ export default function DetailMenuSections({ cast, mediaType, tmdbId, seasons }:
                             {episode.overview?.trim() ? (
                               <p className="season-episode-overview">{episode.overview.trim()}</p>
                             ) : null}
+
+                            <button
+                              type="button"
+                              className={`episode-watch-toggle${
+                                watchedEpisodeKeys.has(`${selectedSeason.seasonNumber}:${episode.episodeNumber}`)
+                                  ? " is-watched"
+                                  : ""
+                              }`}
+                              onClick={() =>
+                                void toggleEpisodeWatched(selectedSeason.seasonNumber, episode.episodeNumber)
+                              }
+                              disabled={!userId || episodeToggleLoadingKey === `${selectedSeason.seasonNumber}:${episode.episodeNumber}`}
+                            >
+                              {watchedEpisodeKeys.has(`${selectedSeason.seasonNumber}:${episode.episodeNumber}`)
+                                ? "Visto"
+                                : "Ver"}
+                            </button>
                           </div>
                         </li>
                       ))}
