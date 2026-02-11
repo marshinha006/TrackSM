@@ -1331,6 +1331,42 @@ button.secondary {
   margin-top: 0.8rem;
 }
 
+.auth-required-page {
+  min-height: calc(100vh - 56px);
+  display: grid;
+  place-items: center;
+}
+
+.auth-required-card {
+  width: min(520px, 100%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+  padding: 1.1rem 1rem;
+  background: rgba(9, 14, 27, 0.62);
+}
+
+.auth-required-title {
+  margin: 0;
+  font-size: clamp(1.45rem, 2.4vw, 2rem);
+}
+
+.auth-required-text {
+  margin: 0.6rem 0 0;
+  color: #dce6ff;
+}
+
+.auth-required-button {
+  margin-top: 0.9rem;
+  display: inline-block;
+  text-decoration: none;
+  color: #fff;
+  border: 1px solid #660704;
+  border-radius: 10px;
+  background: linear-gradient(120deg, #660704, #8d0c0a);
+  font-weight: 700;
+  padding: 0.56rem 0.9rem;
+}
+
 @media (max-width: 760px) {
   .site-nav {
     min-height: 52px;
