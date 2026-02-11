@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import DetailScrollLock from "./detail-scroll-lock";
 import DetailMenuSections from "./detail-menu-sections";
+import MovieWatchToggle from "./movie-watch-toggle";
 
 type DetailGenre = {
   id: number;
@@ -352,12 +353,15 @@ export default async function DetailPage({ params }: { params: Promise<{ mediaTy
         }
       >
         <div className="detail-content">
-          {detail.poster_path ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img className="detail-poster" src={`${TMDB_IMAGE_URL}${detail.poster_path}`} alt={`Poster de ${title}`} />
-          ) : (
-            <div className="detail-poster detail-poster-empty" />
-          )}
+          <div className="detail-poster-column">
+            {detail.poster_path ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img className="detail-poster" src={`${TMDB_IMAGE_URL}${detail.poster_path}`} alt={`Poster de ${title}`} />
+            ) : (
+              <div className="detail-poster detail-poster-empty" />
+            )}
+            {isMovie ? <MovieWatchToggle tmdbId={id} /> : null}
+          </div>
 
           <div className="detail-info">
             <p className="detail-type">{isMovie ? "Filme" : "Serie"}</p>
@@ -420,7 +424,7 @@ export default async function DetailPage({ params }: { params: Promise<{ mediaTy
             {!isMovie && detail.status ? <p className="detail-extra">Status: {detail.status}</p> : null}
           </div>
 
-          {streamingProviders.length ? (
+          {isMovie ? (
             <aside className="detail-streaming" aria-label="Onde assistir">
               {streamingProviders.map((provider) => (
                 // eslint-disable-next-line @next/next/no-img-element

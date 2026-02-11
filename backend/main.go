@@ -76,6 +76,23 @@ type LoginResponse struct {
     Email string `json:"email"`
 }
 
+type WatchedInput struct {
+    UserID        int64  `json:"userId"`
+    MediaType     string `json:"mediaType"`
+    TmdbID        int64  `json:"tmdbId"`
+    SeasonNumber  int64  `json:"seasonNumber"`
+    EpisodeNumber int64  `json:"episodeNumber"`
+}
+
+type WatchedItem struct {
+    UserID        int64  `json:"userId"`
+    MediaType     string `json:"mediaType"`
+    TmdbID        int64  `json:"tmdbId"`
+    SeasonNumber  int64  `json:"seasonNumber"`
+    EpisodeNumber int64  `json:"episodeNumber"`
+    WatchedAt     string `json:"watchedAt"`
+}
+
 func NewStore() *Store {
     return &Store{
         nextID: 4,
@@ -122,6 +139,9 @@ func main() {
     if err := ensureUsersTable(db); err != nil {
         log.Fatal(err)
     }
+    if err := ensureWatchedTable(db); err != nil {
+        log.Fatal(err)
+    }
 
     app := &App{store: store, db: db}
     mux := http.NewServeMux()
@@ -136,6 +156,9 @@ func main() {
     mux.HandleFunc("DELETE /api/series/", app.store.handleDeleteSeries)
     mux.HandleFunc("POST /api/auth/register", app.handleRegister)
     mux.HandleFunc("POST /api/auth/login", app.handleLogin)
+    mux.HandleFunc("GET /api/user/watched", app.handleListWatched)
+    mux.HandleFunc("POST /api/user/watched", app.handleUpsertWatched)
+    mux.HandleFunc("DELETE /api/user/watched", app.handleDeleteWatched)
 
     addr := ":8080"
     log.Printf("API running on http://localhost%s", addr)
@@ -171,6 +194,27 @@ func ensureUsersTable(db *sql.DB) error {
 
     if _, err := db.Exec(query); err != nil {
         return fmt.Errorf("failed creating users table: %w", err)
+    }
+
+    return nil
+}
+
+func ensureWatchedTable(db *sql.DB) error {
+    query := `
+    CREATE TABLE IF NOT EXISTS watched_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        media_type TEXT NOT NULL,
+        tmdb_id INTEGER NOT NULL,
+        season_number INTEGER NOT NULL DEFAULT 0,
+        episode_number INTEGER NOT NULL DEFAULT 0,
+        watched_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, media_type, tmdb_id, season_number, episode_number)
+    );
+    `
+
+    if _, err := db.Exec(query); err != nil {
+        return fmt.Errorf("failed creating watched_items table: %w", err)
     }
 
     return nil
@@ -275,6 +319,164 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
         Name:  name,
         Email: email,
     })
+}
+
+func normalizeWatchedInput(in *WatchedInput) error {
+    in.MediaType = strings.ToLower(strings.TrimSpace(in.MediaType))
+    if in.UserID <= 0 {
+        return fmt.Errorf("userId is required")
+    }
+    if in.TmdbID <= 0 {
+        return fmt.Errorf("tmdbId is required")
+    }
+    if in.MediaType != "movie" && in.MediaType != "tv" {
+        return fmt.Errorf("mediaType must be movie or tv")
+    }
+    if in.MediaType == "movie" {
+        in.SeasonNumber = 0
+        in.EpisodeNumber = 0
+    } else if in.EpisodeNumber > 0 && in.SeasonNumber <= 0 {
+        return fmt.Errorf("seasonNumber is required when episodeNumber is provided")
+    }
+    if in.SeasonNumber < 0 || in.EpisodeNumber < 0 {
+        return fmt.Errorf("seasonNumber and episodeNumber must be positive")
+    }
+    return nil
+}
+
+func (a *App) handleUpsertWatched(w http.ResponseWriter, r *http.Request) {
+    var in WatchedInput
+    if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+        writeError(w, http.StatusBadRequest, "invalid json body")
+        return
+    }
+
+    if err := normalizeWatchedInput(&in); err != nil {
+        writeError(w, http.StatusBadRequest, err.Error())
+        return
+    }
+
+    _, err := a.db.Exec(
+        `INSERT INTO watched_items (user_id, media_type, tmdb_id, season_number, episode_number)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(user_id, media_type, tmdb_id, season_number, episode_number)
+         DO UPDATE SET watched_at = CURRENT_TIMESTAMP`,
+        in.UserID,
+        in.MediaType,
+        in.TmdbID,
+        in.SeasonNumber,
+        in.EpisodeNumber,
+    )
+    if err != nil {
+        writeError(w, http.StatusInternalServerError, "failed to save watched status")
+        return
+    }
+
+    writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+func (a *App) handleDeleteWatched(w http.ResponseWriter, r *http.Request) {
+    var in WatchedInput
+    if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+        writeError(w, http.StatusBadRequest, "invalid json body")
+        return
+    }
+
+    if err := normalizeWatchedInput(&in); err != nil {
+        writeError(w, http.StatusBadRequest, err.Error())
+        return
+    }
+
+    _, err := a.db.Exec(
+        `DELETE FROM watched_items
+         WHERE user_id = ? AND media_type = ? AND tmdb_id = ? AND season_number = ? AND episode_number = ?`,
+        in.UserID,
+        in.MediaType,
+        in.TmdbID,
+        in.SeasonNumber,
+        in.EpisodeNumber,
+    )
+    if err != nil {
+        writeError(w, http.StatusInternalServerError, "failed to delete watched status")
+        return
+    }
+
+    w.WriteHeader(http.StatusNoContent)
+}
+
+func (a *App) handleListWatched(w http.ResponseWriter, r *http.Request) {
+    userID, err := strconv.ParseInt(strings.TrimSpace(r.URL.Query().Get("userId")), 10, 64)
+    if err != nil || userID <= 0 {
+        writeError(w, http.StatusBadRequest, "userId is required")
+        return
+    }
+
+    mediaType := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("mediaType")))
+    if mediaType != "movie" && mediaType != "tv" {
+        writeError(w, http.StatusBadRequest, "mediaType must be movie or tv")
+        return
+    }
+
+    tmdbID, err := strconv.ParseInt(strings.TrimSpace(r.URL.Query().Get("tmdbId")), 10, 64)
+    if err != nil || tmdbID <= 0 {
+        writeError(w, http.StatusBadRequest, "tmdbId is required")
+        return
+    }
+
+    seasonRaw := strings.TrimSpace(r.URL.Query().Get("seasonNumber"))
+    episodeRaw := strings.TrimSpace(r.URL.Query().Get("episodeNumber"))
+
+    query := `SELECT user_id, media_type, tmdb_id, season_number, episode_number, watched_at
+              FROM watched_items
+              WHERE user_id = ? AND media_type = ? AND tmdb_id = ?`
+    args := []any{userID, mediaType, tmdbID}
+
+    if seasonRaw != "" {
+        seasonNumber, parseErr := strconv.ParseInt(seasonRaw, 10, 64)
+        if parseErr != nil || seasonNumber < 0 {
+            writeError(w, http.StatusBadRequest, "invalid seasonNumber")
+            return
+        }
+        query += " AND season_number = ?"
+        args = append(args, seasonNumber)
+    }
+    if episodeRaw != "" {
+        episodeNumber, parseErr := strconv.ParseInt(episodeRaw, 10, 64)
+        if parseErr != nil || episodeNumber < 0 {
+            writeError(w, http.StatusBadRequest, "invalid episodeNumber")
+            return
+        }
+        query += " AND episode_number = ?"
+        args = append(args, episodeNumber)
+    }
+
+    query += " ORDER BY watched_at DESC"
+
+    rows, err := a.db.Query(query, args...)
+    if err != nil {
+        writeError(w, http.StatusInternalServerError, "failed to list watched items")
+        return
+    }
+    defer rows.Close()
+
+    out := make([]WatchedItem, 0)
+    for rows.Next() {
+        var item WatchedItem
+        if scanErr := rows.Scan(
+            &item.UserID,
+            &item.MediaType,
+            &item.TmdbID,
+            &item.SeasonNumber,
+            &item.EpisodeNumber,
+            &item.WatchedAt,
+        ); scanErr != nil {
+            writeError(w, http.StatusInternalServerError, "failed reading watched items")
+            return
+        }
+        out = append(out, item)
+    }
+
+    writeJSON(w, http.StatusOK, out)
 }
 
 func envOrDefault(key string, fallback string) string {

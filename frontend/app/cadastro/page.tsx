@@ -53,7 +53,7 @@ export default function CadastroPage() {
         body: JSON.stringify({ name, email, password }),
       });
 
-      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+      const payload = (await response.json().catch(() => ({}))) as { id?: number; name?: string; email?: string; error?: string };
 
       if (!response.ok) {
         setStatus({ type: "error", message: payload.error || "Nao foi possivel criar a conta." });
@@ -64,8 +64,9 @@ export default function CadastroPage() {
       localStorage.setItem(
         "tracksm_auth",
         JSON.stringify({
-          name,
-          email,
+          id: payload.id,
+          name: payload.name || name,
+          email: payload.email || email,
           loggedAt: new Date().toISOString(),
         }),
       );
