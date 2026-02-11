@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+dist/
+
+# Environment variables
+.env
+.env.*
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Cache folders
+.cache/
+**/.cache/
+
+# Selenium / chromedriver
+chromedriver.exe
+
+# Gradle
+.gradle/
+
+# General temp
+*.log
+
