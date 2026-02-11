@@ -13,19 +13,42 @@ type DetailMenuSectionsProps = {
   cast: CastPerson[];
   mediaType: "movie" | "tv";
   tmdbId: string;
+  seasons: SeasonPanelData[];
 };
 
-type ActiveSection = "cast" | "watch" | null;
+type SeasonPanelData = {
+  seasonNumber: number;
+  seasonName: string;
+  episodeCount: number;
+  episodes: {
+    id: number;
+    name: string;
+    episodeNumber: number;
+    airDate?: string;
+    stillUrl: string | null;
+    overview?: string;
+  }[];
+};
+
+type ActiveSection = "cast" | "watch" | "seasons" | null;
 
 function roleLabel(character: string): "Dublagem" | "Atuacao" {
   const normalized = character.toLowerCase();
   return normalized.includes("voice") || normalized.includes("voz") ? "Dublagem" : "Atuacao";
 }
 
-export default function DetailMenuSections({ cast, mediaType, tmdbId }: DetailMenuSectionsProps) {
+function formatDate(value?: string): string {
+  if (!value) return "Data indisponivel";
+  return new Date(`${value}T00:00:00`).toLocaleDateString("pt-BR");
+}
+
+export default function DetailMenuSections({ cast, mediaType, tmdbId, seasons }: DetailMenuSectionsProps) {
   const [activeSection, setActiveSection] = useState<ActiveSection>(null);
+  const [selectedSeasonNumber, setSelectedSeasonNumber] = useState<number>(seasons[0]?.seasonNumber ?? 1);
 
   const castPreview = useMemo(() => cast.slice(0, 16), [cast]);
+  const selectedSeason =
+    seasons.find((season) => season.seasonNumber === selectedSeasonNumber) ?? seasons[0] ?? null;
   const isExpanded = activeSection !== null;
   const watchUrl =
     mediaType === "movie"
@@ -43,6 +66,11 @@ export default function DetailMenuSections({ cast, mediaType, tmdbId }: DetailMe
     document.body.classList.remove("detail-scroll-unlocked");
     return undefined;
   }, [isExpanded]);
+
+  useEffect(() => {
+    if (!seasons.length) return;
+    setSelectedSeasonNumber(seasons[0].seasonNumber);
+  }, [tmdbId, seasons]);
 
   return (
     <section className={`detail-menu-wrapper${isExpanded ? " is-open" : ""}`} aria-label="Menu de detalhes">
@@ -64,6 +92,16 @@ export default function DetailMenuSections({ cast, mediaType, tmdbId }: DetailMe
           >
             Assistir
           </button>
+          {mediaType === "tv" ? (
+            <button
+              type="button"
+              className={`detail-menu-box${activeSection === "seasons" ? " is-active" : ""}`}
+              aria-expanded={activeSection === "seasons"}
+              onClick={() => setActiveSection((prev) => (prev === "seasons" ? null : "seasons"))}
+            >
+              Temporadas
+            </button>
+          ) : null}
         </div>
 
         {activeSection === "cast" ? (
@@ -104,6 +142,66 @@ export default function DetailMenuSections({ cast, mediaType, tmdbId }: DetailMe
                 allowFullScreen
               />
             </div>
+          </div>
+        ) : null}
+
+        {activeSection === "seasons" ? (
+          <div className="detail-expandable-panel" role="region" aria-label="Temporadas e episodios">
+            {seasons.length ? (
+              <>
+                <div className="season-tabs">
+                  {seasons.map((season) => (
+                    <button
+                      key={season.seasonNumber}
+                      type="button"
+                      className={`season-tab${selectedSeasonNumber === season.seasonNumber ? " is-active" : ""}`}
+                      onClick={() => setSelectedSeasonNumber(season.seasonNumber)}
+                    >
+                      T{season.seasonNumber}
+                    </button>
+                  ))}
+                </div>
+
+                {selectedSeason ? (
+                  <div className="season-panel">
+                    <p className="season-heading">
+                      {selectedSeason.seasonName} ({selectedSeason.episodeCount} episodios)
+                    </p>
+                    <ul className="season-episode-cards">
+                      {selectedSeason.episodes.map((episode) => (
+                        <li key={episode.id} className="season-episode-card">
+                          <div className="season-episode-thumb-wrap">
+                            {episode.stillUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                className="season-episode-thumb"
+                                src={episode.stillUrl}
+                                alt={`Cena do episodio ${episode.episodeNumber}: ${episode.name}`}
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div className="season-episode-thumb season-episode-thumb-empty" aria-hidden="true" />
+                            )}
+                          </div>
+                          <div className="season-episode-body">
+                            <p className="season-episode-title">
+                              <span className="season-episode-number">E{episode.episodeNumber.toString().padStart(2, "0")}</span>{" "}
+                              {episode.name}
+                            </p>
+                            <p className="season-episode-date">{formatDate(episode.airDate)}</p>
+                            {episode.overview?.trim() ? (
+                              <p className="season-episode-overview">{episode.overview.trim()}</p>
+                            ) : null}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <p className="detail-expandable-empty">Nao foi possivel carregar temporadas para esta serie.</p>
+            )}
           </div>
         ) : null}
       </div>
