@@ -652,6 +652,28 @@ button.secondary {
   color: #dce6ff;
 }
 
+.detail-genre-tags {
+  margin-top: 0.6rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.genre-chip {
+  text-decoration: none;
+  color: #f0f5ff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0.28rem 0.58rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.genre-chip:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
 .detail-rating {
   margin: 0.65rem 0 0;
   color: #f4f8ff;
