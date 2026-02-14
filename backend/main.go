@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 	_ "modernc.org/sqlite"
@@ -82,6 +83,7 @@ type WatchedInput struct {
 	TmdbID        int64  `json:"tmdbId"`
 	SeasonNumber  int64  `json:"seasonNumber"`
 	EpisodeNumber int64  `json:"episodeNumber"`
+	WatchedAt     string `json:"watchedAt"`
 }
 
 type WatchedItem struct {
@@ -344,6 +346,32 @@ func normalizeWatchedInput(in *WatchedInput) error {
 	return nil
 }
 
+func normalizeWatchedAt(raw string) (string, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return time.Now().UTC().Format("2006-01-02 15:04:05"), nil
+	}
+
+	layouts := []string{
+		time.RFC3339,
+		"2006-01-02",
+		"2006-01-02 15:04:05",
+	}
+
+	for _, layout := range layouts {
+		parsed, err := time.Parse(layout, trimmed)
+		if err != nil {
+			continue
+		}
+		if layout == "2006-01-02" {
+			parsed = time.Date(parsed.Year(), parsed.Month(), parsed.Day(), 12, 0, 0, 0, time.UTC)
+		}
+		return parsed.UTC().Format("2006-01-02 15:04:05"), nil
+	}
+
+	return "", fmt.Errorf("invalid watchedAt")
+}
+
 func (a *App) handleUpsertWatched(w http.ResponseWriter, r *http.Request) {
 	var in WatchedInput
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
@@ -355,17 +383,23 @@ func (a *App) handleUpsertWatched(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	watchedAt, err := normalizeWatchedAt(in.WatchedAt)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
-	_, err := a.db.Exec(
-		`INSERT INTO watched_items (user_id, media_type, tmdb_id, season_number, episode_number)
-         VALUES (?, ?, ?, ?, ?)
+	_, err = a.db.Exec(
+		`INSERT INTO watched_items (user_id, media_type, tmdb_id, season_number, episode_number, watched_at)
+         VALUES (?, ?, ?, ?, ?, ?)
          ON CONFLICT(user_id, media_type, tmdb_id, season_number, episode_number)
-         DO UPDATE SET watched_at = CURRENT_TIMESTAMP`,
+         DO UPDATE SET watched_at = excluded.watched_at`,
 		in.UserID,
 		in.MediaType,
 		in.TmdbID,
 		in.SeasonNumber,
 		in.EpisodeNumber,
+		watchedAt,
 	)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to save watched status")

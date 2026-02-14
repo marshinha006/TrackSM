@@ -39,9 +39,57 @@ type StoredAuth = {
 type WatchedItem = {
   seasonNumber: number;
   episodeNumber: number;
+  watchedAt?: string;
 };
 
 const API_BASE_URL = getApiBaseUrl();
+const WEEKDAY_LABELS = ["D", "S", "T", "Q", "Q", "S", "S"];
+
+function getTodayValue(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function fromDateValue(value: string): Date {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day, 12, 0, 0, 0);
+}
+
+function toDateValue(date: Date): string {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function startOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), 1, 12, 0, 0, 0);
+}
+
+function sameDay(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+function buildCalendarDays(monthStart: Date): { date: Date; inMonth: boolean; disabled: boolean; dateValue: string }[] {
+  const firstDayOfWeek = monthStart.getDay();
+  const gridStart = new Date(monthStart.getFullYear(), monthStart.getMonth(), 1 - firstDayOfWeek, 12, 0, 0, 0);
+  const today = fromDateValue(getTodayValue());
+
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + index, 12, 0, 0, 0);
+    return {
+      date,
+      inMonth: date.getMonth() === monthStart.getMonth(),
+      disabled: date > today,
+      dateValue: toDateValue(date),
+    };
+  });
+}
+
+function watchedAtToDateValue(raw?: string): string | null {
+  if (!raw) return null;
+  const match = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] : null;
+}
 
 function roleLabel(character: string): "Dublagem" | "Atuacao" {
   const normalized = character.toLowerCase();
@@ -59,6 +107,9 @@ export default function DetailMenuSections({ cast, mediaType, tmdbId, seasons }:
   const [userId, setUserId] = useState<number | null>(null);
   const [watchedEpisodeKeys, setWatchedEpisodeKeys] = useState<Set<string>>(new Set());
   const [episodeToggleLoadingKey, setEpisodeToggleLoadingKey] = useState<string | null>(null);
+  const [episodeWatchedDates, setEpisodeWatchedDates] = useState<Record<string, string>>({});
+  const [openEpisodeDateKey, setOpenEpisodeDateKey] = useState<string | null>(null);
+  const [calendarMonthStart, setCalendarMonthStart] = useState<Date>(() => startOfMonth(new Date()));
 
   const castPreview = useMemo(() => cast.slice(0, 16), [cast]);
   const selectedSeason =
@@ -121,7 +172,16 @@ export default function DetailMenuSections({ cast, mediaType, tmdbId, seasons }:
             .filter((item) => item.seasonNumber > 0 && item.episodeNumber > 0)
             .map((item) => `${item.seasonNumber}:${item.episodeNumber}`),
         );
+        const dateByKey = data
+          .filter((item) => item.seasonNumber > 0 && item.episodeNumber > 0)
+          .reduce<Record<string, string>>((acc, item) => {
+            const parsedDate = watchedAtToDateValue(item.watchedAt);
+            if (!parsedDate) return acc;
+            acc[`${item.seasonNumber}:${item.episodeNumber}`] = parsedDate;
+            return acc;
+          }, {});
         setWatchedEpisodeKeys(keys);
+        setEpisodeWatchedDates(dateByKey);
       } catch {
         // noop
       }
@@ -130,15 +190,75 @@ export default function DetailMenuSections({ cast, mediaType, tmdbId, seasons }:
     void loadWatched();
   }, [userId, mediaType, tmdbId]);
 
+  useEffect(() => {
+    if (!openEpisodeDateKey) return;
+
+    function handleDocumentClick(event: MouseEvent) {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest(`[data-episode-picker-key="${openEpisodeDateKey}"]`)) return;
+      setOpenEpisodeDateKey(null);
+    }
+
+    function handleEsc(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpenEpisodeDateKey(null);
+      }
+    }
+
+    document.addEventListener("mousedown", handleDocumentClick);
+    document.addEventListener("keydown", handleEsc);
+    return () => {
+      document.removeEventListener("mousedown", handleDocumentClick);
+      document.removeEventListener("keydown", handleEsc);
+    };
+  }, [openEpisodeDateKey]);
+
+  function getEpisodeWatchedDate(key: string): string {
+    return episodeWatchedDates[key] || getTodayValue();
+  }
+
+  async function upsertEpisodeWatched(seasonNumber: number, episodeNumber: number, watchedAt: string, key: string) {
+    if (!userId || episodeToggleLoadingKey) return;
+    setEpisodeToggleLoadingKey(key);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/user/watched`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          mediaType: "tv",
+          tmdbId: Number(tmdbId),
+          seasonNumber,
+          episodeNumber,
+          watchedAt,
+        }),
+      });
+      if (!response.ok) return;
+      setWatchedEpisodeKeys((prev) => {
+        const next = new Set(prev);
+        next.add(key);
+        return next;
+      });
+      setEpisodeWatchedDates((prev) => ({ ...prev, [key]: watchedAt }));
+    } finally {
+      setEpisodeToggleLoadingKey(null);
+    }
+  }
+
   async function toggleEpisodeWatched(seasonNumber: number, episodeNumber: number) {
     if (!userId || episodeToggleLoadingKey) return;
     const key = `${seasonNumber}:${episodeNumber}`;
-    setEpisodeToggleLoadingKey(key);
     const isWatched = watchedEpisodeKeys.has(key);
     try {
-      const method = isWatched ? "DELETE" : "POST";
+      if (!isWatched) {
+        await upsertEpisodeWatched(seasonNumber, episodeNumber, getEpisodeWatchedDate(key), key);
+        return;
+      }
+
+      setEpisodeToggleLoadingKey(key);
       const response = await fetch(`${API_BASE_URL}/api/user/watched`, {
-        method,
+        method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId,
@@ -151,13 +271,36 @@ export default function DetailMenuSections({ cast, mediaType, tmdbId, seasons }:
       if (!response.ok) return;
       setWatchedEpisodeKeys((prev) => {
         const next = new Set(prev);
-        if (isWatched) next.delete(key);
-        else next.add(key);
+        next.delete(key);
+        return next;
+      });
+      setEpisodeWatchedDates((prev) => {
+        const next = { ...prev };
+        delete next[key];
         return next;
       });
     } finally {
       setEpisodeToggleLoadingKey(null);
     }
+  }
+
+  function openEpisodeDatePicker(key: string) {
+    if (!userId || episodeToggleLoadingKey) return;
+    if (openEpisodeDateKey === key) {
+      setOpenEpisodeDateKey(null);
+      return;
+    }
+    const sourceValue = getEpisodeWatchedDate(key);
+    setCalendarMonthStart(startOfMonth(fromDateValue(sourceValue)));
+    setOpenEpisodeDateKey(key);
+  }
+
+  function handleEpisodeDateChange(seasonNumber: number, episodeNumber: number, value: string) {
+    if (!value || !userId || episodeToggleLoadingKey) return;
+    const key = `${seasonNumber}:${episodeNumber}`;
+    setEpisodeWatchedDates((prev) => ({ ...prev, [key]: value }));
+    void upsertEpisodeWatched(seasonNumber, episodeNumber, value, key);
+    setOpenEpisodeDateKey(null);
   }
 
   return (
@@ -262,50 +405,145 @@ export default function DetailMenuSections({ cast, mediaType, tmdbId, seasons }:
                       {selectedSeason.seasonName} ({selectedSeason.episodeCount} episodios)
                     </p>
                     <ul className="season-episode-cards">
-                      {selectedSeason.episodes.map((episode) => (
-                        <li key={episode.id} className="season-episode-card">
-                          <div className="season-episode-thumb-wrap">
-                            {episode.stillUrl ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                className="season-episode-thumb"
-                                src={episode.stillUrl}
-                                alt={`Cena do episodio ${episode.episodeNumber}: ${episode.name}`}
-                                loading="lazy"
-                              />
-                            ) : (
-                              <div className="season-episode-thumb season-episode-thumb-empty" aria-hidden="true" />
-                            )}
-                          </div>
-                          <div className="season-episode-body">
-                            <p className="season-episode-title">
-                              <span className="season-episode-number">E{episode.episodeNumber.toString().padStart(2, "0")}</span>{" "}
-                              {episode.name}
-                            </p>
-                            <p className="season-episode-date">{formatDate(episode.airDate)}</p>
-                            {episode.overview?.trim() ? (
-                              <p className="season-episode-overview">{episode.overview.trim()}</p>
-                            ) : null}
+                      {selectedSeason.episodes.map((episode) => {
+                        const episodeKey = `${selectedSeason.seasonNumber}:${episode.episodeNumber}`;
+                        const isLoading = episodeToggleLoadingKey === episodeKey;
+                        const selectedDateValue = getEpisodeWatchedDate(episodeKey);
+                        const selectedDate = fromDateValue(selectedDateValue);
+                        const monthLabel = new Intl.DateTimeFormat("pt-BR", {
+                          month: "long",
+                          year: "numeric",
+                        }).format(calendarMonthStart);
+                        const days = buildCalendarDays(calendarMonthStart);
+                        const todayDate = fromDateValue(getTodayValue());
 
-                            <button
-                              type="button"
-                              className={`episode-watch-toggle${
-                                watchedEpisodeKeys.has(`${selectedSeason.seasonNumber}:${episode.episodeNumber}`)
-                                  ? " is-watched"
-                                  : ""
-                              }`}
-                              onClick={() =>
-                                void toggleEpisodeWatched(selectedSeason.seasonNumber, episode.episodeNumber)
-                              }
-                              disabled={!userId || episodeToggleLoadingKey === `${selectedSeason.seasonNumber}:${episode.episodeNumber}`}
-                            >
-                              {watchedEpisodeKeys.has(`${selectedSeason.seasonNumber}:${episode.episodeNumber}`)
-                                ? "Visto"
-                                : "Ver"}
-                            </button>
-                          </div>
-                        </li>
-                      ))}
+                        return (
+                          <li key={episode.id} className="season-episode-card">
+                            <div className="season-episode-thumb-wrap">
+                              {episode.stillUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  className="season-episode-thumb"
+                                  src={episode.stillUrl}
+                                  alt={`Cena do episodio ${episode.episodeNumber}: ${episode.name}`}
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <div className="season-episode-thumb season-episode-thumb-empty" aria-hidden="true" />
+                              )}
+                            </div>
+                            <div className="season-episode-body">
+                              <p className="season-episode-title">
+                                <span className="season-episode-number">E{episode.episodeNumber.toString().padStart(2, "0")}</span>{" "}
+                                {episode.name}
+                              </p>
+                              <p className="season-episode-date">{formatDate(episode.airDate)}</p>
+                              {episode.overview?.trim() ? (
+                                <p className="season-episode-overview">{episode.overview.trim()}</p>
+                              ) : null}
+
+                              <div className="episode-watch-actions">
+                                <button
+                                  type="button"
+                                  className={`episode-watch-toggle${watchedEpisodeKeys.has(episodeKey) ? " is-watched" : ""}`}
+                                  onClick={() => void toggleEpisodeWatched(selectedSeason.seasonNumber, episode.episodeNumber)}
+                                  disabled={!userId || isLoading}
+                                >
+                                  {watchedEpisodeKeys.has(episodeKey) ? "Visto" : "Ver"}
+                                </button>
+                                <div className="episode-date-picker">
+                                  <button
+                                    type="button"
+                                    className="episode-date-trigger"
+                                    aria-label={`Selecionar data vista do episodio ${episode.episodeNumber}`}
+                                    title="Selecionar data vista"
+                                    onClick={() => openEpisodeDatePicker(episodeKey)}
+                                    disabled={!userId || isLoading}
+                                  >
+                                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                      <rect x="3.5" y="4.5" width="17" height="16" rx="2.5" />
+                                      <path d="M7 3.5v3M17 3.5v3M3.5 9.5h17M8 13h3M13 13h3M8 17h3" />
+                                    </svg>
+                                  </button>
+                                  {openEpisodeDateKey === episodeKey ? (
+                                    <div className="episode-date-popover" data-episode-picker-key={episodeKey}>
+                                      <div className="episode-calendar-head">
+                                        <button
+                                          type="button"
+                                          className="episode-calendar-nav"
+                                          onClick={() =>
+                                            setCalendarMonthStart(
+                                              new Date(
+                                                calendarMonthStart.getFullYear(),
+                                                calendarMonthStart.getMonth() - 1,
+                                                1,
+                                                12,
+                                                0,
+                                                0,
+                                                0,
+                                              ),
+                                            )
+                                          }
+                                          aria-label="Mes anterior"
+                                        >
+                                          <span aria-hidden="true">{"\u2039"}</span>
+                                        </button>
+                                        <strong className="episode-calendar-title">{monthLabel}</strong>
+                                        <button
+                                          type="button"
+                                          className="episode-calendar-nav"
+                                          onClick={() =>
+                                            setCalendarMonthStart(
+                                              new Date(
+                                                calendarMonthStart.getFullYear(),
+                                                calendarMonthStart.getMonth() + 1,
+                                                1,
+                                                12,
+                                                0,
+                                                0,
+                                                0,
+                                              ),
+                                            )
+                                          }
+                                          aria-label="Proximo mes"
+                                        >
+                                          <span aria-hidden="true">{"\u203A"}</span>
+                                        </button>
+                                      </div>
+                                      <div className="episode-calendar-weekdays">
+                                        {WEEKDAY_LABELS.map((label, index) => (
+                                          <span key={`${label}-${index}`}>{label}</span>
+                                        ))}
+                                      </div>
+                                      <div className="episode-calendar-grid">
+                                        {days.map((day) => (
+                                          <button
+                                            key={day.dateValue}
+                                            type="button"
+                                            className={`episode-calendar-day${day.inMonth ? "" : " is-outside"}${
+                                              sameDay(day.date, selectedDate) ? " is-selected" : ""
+                                            }${sameDay(day.date, todayDate) ? " is-today" : ""}`}
+                                            disabled={day.disabled}
+                                            onClick={() =>
+                                              handleEpisodeDateChange(
+                                                selectedSeason.seasonNumber,
+                                                episode.episodeNumber,
+                                                day.dateValue,
+                                              )
+                                            }
+                                          >
+                                            {day.date.getDate()}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  ) : null}
+                                </div>
+                              </div>
+                            </div>
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                 ) : null}

@@ -921,7 +921,7 @@ button.secondary {
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 12px;
   background: rgba(8, 12, 24, 0.58);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .detail-menu-box {
@@ -1040,6 +1040,168 @@ button.secondary {
   font-size: 0.92rem;
 }
 
+.episode-watch-actions {
+  margin-top: 0.42rem;
+  display: flex;
+  align-items: center;
+  gap: 0.38rem;
+}
+
+.episode-watch-actions .episode-watch-toggle {
+  margin-top: 0;
+}
+
+.episode-date-picker {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  z-index: 4;
+}
+
+.episode-date-trigger {
+  width: 100%;
+  height: 100%;
+  border: 1px solid rgba(179, 18, 18, 0.9);
+  background: linear-gradient(135deg, rgba(126, 9, 9, 0.95), rgba(176, 13, 13, 0.92));
+  color: #ffe4e4;
+  box-shadow: 0 0 0 1px rgba(85, 8, 8, 0.45) inset;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: transform 0.16s ease, filter 0.16s ease, box-shadow 0.16s ease;
+}
+
+.episode-date-trigger:hover:not(:disabled) {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.episode-date-trigger:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 119, 119, 0.32), 0 0 0 1px rgba(85, 8, 8, 0.45) inset;
+}
+
+.episode-date-trigger svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.episode-date-trigger:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.episode-date-popover {
+  position: absolute;
+  bottom: calc(100% + 0.4rem);
+  right: 0;
+  width: 244px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 118, 118, 0.5);
+  background: linear-gradient(165deg, rgba(57, 5, 5, 0.98), rgba(30, 3, 3, 0.98));
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.45);
+  padding: 0.5rem;
+  z-index: 30;
+}
+
+.episode-calendar-head {
+  display: grid;
+  grid-template-columns: 28px 1fr 28px;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.episode-calendar-title {
+  text-align: center;
+  color: #ffe4e4;
+  font-size: 0.84rem;
+  text-transform: capitalize;
+}
+
+.episode-calendar-nav {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 118, 118, 0.44);
+  background: rgba(122, 16, 16, 0.28);
+  color: #ffd6d6;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.episode-calendar-weekdays {
+  margin-top: 0.45rem;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.18rem;
+}
+
+.episode-calendar-weekdays span {
+  color: #f3bbbb;
+  font-size: 0.67rem;
+  text-align: center;
+  font-weight: 700;
+}
+
+.episode-calendar-grid {
+  margin-top: 0.24rem;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.18rem;
+}
+
+.episode-calendar-day {
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  color: #ffe6e6;
+  height: 29px;
+  width: 29px;
+  padding: 0;
+  line-height: 1;
+  font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  justify-self: center;
+}
+
+.episode-calendar-day:hover:not(:disabled) {
+  background: rgba(255, 133, 133, 0.2);
+  border-color: rgba(255, 133, 133, 0.42);
+}
+
+.episode-calendar-day.is-outside {
+  color: rgba(255, 206, 206, 0.5);
+}
+
+.episode-calendar-day.is-today {
+  border-color: rgba(255, 141, 141, 0.72);
+}
+
+.episode-calendar-day.is-selected {
+  background: linear-gradient(140deg, #9b0f0f, #d21a1a);
+  border-color: rgba(255, 167, 167, 0.8);
+  color: #fff;
+}
+
+.episode-calendar-day:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .season-episode-cards {
   list-style: none;
   margin: 0;
@@ -1051,9 +1213,10 @@ button.secondary {
 
 .season-episode-card {
   border-radius: 10px;
-  overflow: hidden;
+  overflow: visible;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.12);
+  position: relative;
 }
 
 .season-episode-thumb-wrap {
@@ -1075,6 +1238,7 @@ button.secondary {
 
 .season-episode-body {
   padding: 0.5rem 0.6rem 0.6rem;
+  position: relative;
 }
 
 .season-episode-number {
@@ -1385,6 +1549,59 @@ button.secondary {
   text-align: center;
   font-size: 0.76rem;
   line-height: 1.3;
+}
+
+.watched-date-field {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.watched-date-field span {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #b8c8e8;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.watched-date-input {
+  width: 100%;
+  border: 1px solid rgba(196, 210, 236, 0.26);
+  border-radius: 10px;
+  background: rgba(10, 18, 32, 0.84);
+  color: #ecf2ff;
+  padding: 0.42rem 0.5rem;
+  font-size: 0.84rem;
+}
+
+.watched-date-control {
+  display: flex;
+  align-items: center;
+  gap: 0.38rem;
+}
+
+.watched-date-control .watched-date-input {
+  min-width: 0;
+  flex: 1;
+}
+
+.watched-date-control .watched-date-input::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.movie-date-picker {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+}
+
+.movie-date-popover {
+  right: 0;
+}
+
+.watched-date-input:disabled {
+  opacity: 0.72;
 }
 
 .detail-streaming-logo {
@@ -1819,6 +2036,10 @@ button.secondary {
   font-size: 0.9rem;
   line-height: 1.4;
   color: #1f2d45;
+}
+
+.my-series-next-episode-date-field {
+  margin-top: 0.65rem;
 }
 
 .my-series-next-episode-action {
