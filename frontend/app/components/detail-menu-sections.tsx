@@ -41,6 +41,11 @@ type WatchedItem = {
   episodeNumber: number;
   watchedAt?: string;
 };
+type PreviousEpisodesConfirmState = {
+  key: string;
+  watchedAt: string;
+  missingPreviousKeys: string[];
+};
 
 const API_BASE_URL = getApiBaseUrl();
 const WEEKDAY_LABELS = ["D", "S", "T", "Q", "Q", "S", "S"];
@@ -110,6 +115,7 @@ export default function DetailMenuSections({ cast, mediaType, tmdbId, seasons }:
   const [episodeWatchedDates, setEpisodeWatchedDates] = useState<Record<string, string>>({});
   const [openEpisodeDateKey, setOpenEpisodeDateKey] = useState<string | null>(null);
   const [calendarMonthStart, setCalendarMonthStart] = useState<Date>(() => startOfMonth(new Date()));
+  const [previousEpisodesConfirm, setPreviousEpisodesConfirm] = useState<PreviousEpisodesConfirmState | null>(null);
 
   const castPreview = useMemo(() => cast.slice(0, 16), [cast]);
   const selectedSeason =
@@ -218,32 +224,106 @@ export default function DetailMenuSections({ cast, mediaType, tmdbId, seasons }:
     return episodeWatchedDates[key] || getTodayValue();
   }
 
-  async function upsertEpisodeWatched(seasonNumber: number, episodeNumber: number, watchedAt: string, key: string) {
+  function getPreviousEpisodeKeys(seasonNumber: number, episodeNumber: number): string[] {
+    const orderedEpisodeKeys = seasons
+      .slice()
+      .sort((a, b) => a.seasonNumber - b.seasonNumber)
+      .flatMap((season) =>
+        season.episodes
+          .slice()
+          .sort((a, b) => a.episodeNumber - b.episodeNumber)
+          .map((episode) => `${season.seasonNumber}:${episode.episodeNumber}`),
+      );
+
+    const targetKey = `${seasonNumber}:${episodeNumber}`;
+    const targetIndex = orderedEpisodeKeys.indexOf(targetKey);
+    if (targetIndex <= 0) return [];
+    return orderedEpisodeKeys.slice(0, targetIndex);
+  }
+
+  async function upsertEpisodeWatched(keys: string[], watchedAt: string, loadingKey: string) {
     if (!userId || episodeToggleLoadingKey) return;
-    setEpisodeToggleLoadingKey(key);
+    setEpisodeToggleLoadingKey(loadingKey);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/user/watched`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId,
-          mediaType: "tv",
-          tmdbId: Number(tmdbId),
-          seasonNumber,
-          episodeNumber,
-          watchedAt,
-        }),
-      });
-      if (!response.ok) return;
+      const successfulKeys: string[] = [];
+      for (const key of keys) {
+        const [seasonNumberRaw, episodeNumberRaw] = key.split(":");
+        const seasonNumber = Number(seasonNumberRaw);
+        const episodeNumber = Number(episodeNumberRaw);
+        const response = await fetch(`${API_BASE_URL}/api/user/watched`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId,
+            mediaType: "tv",
+            tmdbId: Number(tmdbId),
+            seasonNumber,
+            episodeNumber,
+            watchedAt,
+          }),
+        });
+        if (response.ok) {
+          successfulKeys.push(key);
+        }
+      }
+
+      if (!successfulKeys.length) return;
+
       setWatchedEpisodeKeys((prev) => {
         const next = new Set(prev);
-        next.add(key);
+        successfulKeys.forEach((key) => next.add(key));
         return next;
       });
-      setEpisodeWatchedDates((prev) => ({ ...prev, [key]: watchedAt }));
+      setEpisodeWatchedDates((prev) => {
+        const next = { ...prev };
+        successfulKeys.forEach((key) => {
+          next[key] = watchedAt;
+        });
+        return next;
+      });
     } finally {
       setEpisodeToggleLoadingKey(null);
     }
+  }
+
+  async function markEpisodeWatchedWithPreviousPrompt(
+    seasonNumber: number,
+    episodeNumber: number,
+    watchedAt: string,
+    key: string,
+  ) {
+    const previousEpisodeKeys = getPreviousEpisodeKeys(seasonNumber, episodeNumber);
+    const missingPreviousKeys = previousEpisodeKeys.filter((episodeKey) => !watchedEpisodeKeys.has(episodeKey));
+
+    if (!missingPreviousKeys.length) {
+      await upsertEpisodeWatched([key], watchedAt, key);
+      return;
+    }
+
+    setPreviousEpisodesConfirm({
+      key,
+      watchedAt,
+      missingPreviousKeys,
+    });
+    setOpenEpisodeDateKey(null);
+  }
+
+  function confirmMarkOnlyCurrent() {
+    if (!previousEpisodesConfirm) return;
+    const { key, watchedAt } = previousEpisodesConfirm;
+    setPreviousEpisodesConfirm(null);
+    void upsertEpisodeWatched([key], watchedAt, key);
+  }
+
+  function confirmMarkCurrentAndPrevious() {
+    if (!previousEpisodesConfirm) return;
+    const { key, watchedAt, missingPreviousKeys } = previousEpisodesConfirm;
+    setPreviousEpisodesConfirm(null);
+    void upsertEpisodeWatched([...missingPreviousKeys, key], watchedAt, key);
+  }
+
+  function closePreviousEpisodesConfirm() {
+    setPreviousEpisodesConfirm(null);
   }
 
   async function toggleEpisodeWatched(seasonNumber: number, episodeNumber: number) {
@@ -252,7 +332,7 @@ export default function DetailMenuSections({ cast, mediaType, tmdbId, seasons }:
     const isWatched = watchedEpisodeKeys.has(key);
     try {
       if (!isWatched) {
-        await upsertEpisodeWatched(seasonNumber, episodeNumber, getEpisodeWatchedDate(key), key);
+        await markEpisodeWatchedWithPreviousPrompt(seasonNumber, episodeNumber, getEpisodeWatchedDate(key), key);
         return;
       }
 
@@ -298,8 +378,13 @@ export default function DetailMenuSections({ cast, mediaType, tmdbId, seasons }:
   function handleEpisodeDateChange(seasonNumber: number, episodeNumber: number, value: string) {
     if (!value || !userId || episodeToggleLoadingKey) return;
     const key = `${seasonNumber}:${episodeNumber}`;
-    setEpisodeWatchedDates((prev) => ({ ...prev, [key]: value }));
-    void upsertEpisodeWatched(seasonNumber, episodeNumber, value, key);
+    if (watchedEpisodeKeys.has(key)) {
+      void upsertEpisodeWatched([key], value, key);
+      setOpenEpisodeDateKey(null);
+      return;
+    }
+
+    void markEpisodeWatchedWithPreviousPrompt(seasonNumber, episodeNumber, value, key);
     setOpenEpisodeDateKey(null);
   }
 
@@ -554,6 +639,31 @@ export default function DetailMenuSections({ cast, mediaType, tmdbId, seasons }:
           </div>
         ) : null}
       </div>
+      {previousEpisodesConfirm ? (
+        <div className="episode-confirm-overlay" role="presentation" onClick={closePreviousEpisodesConfirm}>
+          <div
+            className="episode-confirm-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Confirmar marcacao de episodios anteriores"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <p className="episode-confirm-title">Marcar episodios anteriores?</p>
+            <p className="episode-confirm-text">
+              Existem {previousEpisodesConfirm.missingPreviousKeys.length} episodio(s) anteriores nao vistos.
+            </p>
+            <p className="episode-confirm-text">Deseja marcar os anteriores como vistos tambem?</p>
+            <div className="episode-confirm-actions">
+              <button type="button" className="episode-confirm-button secondary" onClick={confirmMarkOnlyCurrent}>
+                So este episodio
+              </button>
+              <button type="button" className="episode-confirm-button primary" onClick={confirmMarkCurrentAndPrevious}>
+                Marcar anteriores
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
