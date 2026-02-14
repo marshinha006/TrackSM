@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { WheelEvent, useEffect, useMemo, useState } from "react";
 import { getApiBaseUrl } from "../lib/api-base-url";
 
 type StoredAuth = {
@@ -134,6 +134,17 @@ export default function MinhasSeriesPage() {
   const [moviePosterById, setMoviePosterById] = useState<Map<number, string | null>>(new Map());
   const [movieTitleById, setMovieTitleById] = useState<Map<number, string>>(new Map());
   const [movieRuntimeById, setMovieRuntimeById] = useState<Map<number, number | null>>(new Map());
+
+  function handleHorizontalWheel(event: WheelEvent<HTMLElement>) {
+    const container = event.currentTarget;
+    const canScrollHorizontally = container.scrollWidth > container.clientWidth;
+    if (!canScrollHorizontally) return;
+
+    // Trackpad horizontal gesture still works natively; convert vertical wheel into horizontal scroll.
+    if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+    event.preventDefault();
+    container.scrollLeft += event.deltaY;
+  }
 
   const seriesWithRemainingEpisodes = useMemo(
     () => seriesProgress.filter((series) => series.remainingEpisodes !== null && series.remainingEpisodes > 0),
@@ -609,7 +620,7 @@ export default function MinhasSeriesPage() {
           ) : null}
 
           {!isLoading && !errorMessage && viewMode === "series" && seriesWithRemainingEpisodes.length ? (
-            <section className="my-series-strip" aria-label="Series com episodios restantes">
+            <section className="my-series-strip" aria-label="Series com episodios restantes" onWheel={handleHorizontalWheel}>
               {seriesWithRemainingEpisodes.map((series) => (
                 <button
                   key={series.id}
@@ -635,7 +646,7 @@ export default function MinhasSeriesPage() {
           ) : null}
 
           {!isLoading && !errorMessage && viewMode === "movies" && movieHistory.length ? (
-            <section className="my-series-strip is-movies" aria-label="Historico de filmes vistos">
+            <section className="my-series-strip is-movies" aria-label="Historico de filmes vistos" onWheel={handleHorizontalWheel}>
               {movieHistory.map((movie) => (
                 <Link key={movie.id} href={`/detalhe/filme/${movie.id}`} className="my-series-card" aria-label={`Abrir ${movie.title}`}>
                   {movie.posterUrl ? (
