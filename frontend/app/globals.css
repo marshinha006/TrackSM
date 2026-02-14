@@ -2132,7 +2132,14 @@ button.secondary {
   display: flex;
   gap: 0.7rem;
   overflow-x: auto;
-  padding: 0.2rem 0.05rem 0.3rem;
+  overflow-y: hidden;
+  padding: 0.2rem 0.05rem 0.42rem;
+  scroll-behavior: smooth;
+  scroll-snap-type: x proximity;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(173, 26, 20, 0.92) rgba(18, 26, 43, 0.58);
 }
 
 .my-series-strip.is-movies {
@@ -2148,6 +2155,8 @@ button.secondary {
   display: block;
   min-width: 150px;
   width: 150px;
+  flex: 0 0 auto;
+  scroll-snap-align: start;
   border-radius: 12px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -2182,6 +2191,25 @@ button.secondary {
   font-size: 0.78rem;
   font-weight: 700;
   text-align: center;
+}
+
+.my-series-strip::-webkit-scrollbar {
+  height: 10px;
+}
+
+.my-series-strip::-webkit-scrollbar-track {
+  background: rgba(18, 26, 43, 0.58);
+  border-radius: 999px;
+}
+
+.my-series-strip::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #b31212, #7e0808);
+  border-radius: 999px;
+  border: 2px solid rgba(18, 26, 43, 0.58);
+}
+
+.my-series-strip::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #c91616, #8f0909);
 }
 
 .my-series-done {
