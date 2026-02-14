@@ -107,7 +107,7 @@ function formatDate(value?: string): string {
 }
 
 export default function DetailMenuSections({ cast, mediaType, tmdbId, seasons }: DetailMenuSectionsProps) {
-  const [activeSection, setActiveSection] = useState<ActiveSection>(null);
+  const [activeSection, setActiveSection] = useState<ActiveSection>(mediaType === "tv" ? "seasons" : null);
   const [selectedSeasonNumber, setSelectedSeasonNumber] = useState<number>(seasons[0]?.seasonNumber ?? 1);
   const [userId, setUserId] = useState<number | null>(null);
   const [watchedEpisodeKeys, setWatchedEpisodeKeys] = useState<Set<string>>(new Set());
