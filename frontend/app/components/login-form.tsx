@@ -39,7 +39,14 @@ export default function LoginForm() {
         body: JSON.stringify({ email, password }),
       });
 
-      const payload = (await response.json().catch(() => ({}))) as { id?: number; name?: string; email?: string; error?: string };
+      const payload = (await response.json().catch(() => ({}))) as {
+        id?: number;
+        name?: string;
+        email?: string;
+        username?: string;
+        photoUrl?: string;
+        error?: string;
+      };
       if (!response.ok || !payload.name || !payload.email) {
         setStatus({ type: "error", message: payload.error || "Nao foi possivel entrar." });
         return;
@@ -51,6 +58,8 @@ export default function LoginForm() {
           id: payload.id,
           name: payload.name,
           email: payload.email,
+          username: payload.username || "",
+          photoUrl: payload.photoUrl || "",
           loggedAt: new Date().toISOString(),
         }),
       );

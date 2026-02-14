@@ -54,7 +54,14 @@ export default function CadastroPage() {
         body: JSON.stringify({ name, email, password }),
       });
 
-      const payload = (await response.json().catch(() => ({}))) as { id?: number; name?: string; email?: string; error?: string };
+      const payload = (await response.json().catch(() => ({}))) as {
+        id?: number;
+        name?: string;
+        email?: string;
+        username?: string;
+        photoUrl?: string;
+        error?: string;
+      };
 
       if (!response.ok) {
         setStatus({ type: "error", message: payload.error || "Nao foi possivel criar a conta." });
@@ -68,6 +75,8 @@ export default function CadastroPage() {
           id: payload.id,
           name: payload.name || name,
           email: payload.email || email,
+          username: payload.username || "",
+          photoUrl: payload.photoUrl || "",
           loggedAt: new Date().toISOString(),
         }),
       );
