@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -61,9 +62,11 @@ type RegisterInput struct {
 }
 
 type RegisterResponse struct {
-	ID    int64  `json:"id"`
-	Name  string `json:"name"`
-	Email string `json:"email"`
+	ID       int64  `json:"id"`
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Username string `json:"username"`
+	PhotoURL string `json:"photoUrl"`
 }
 
 type LoginInput struct {
@@ -72,9 +75,18 @@ type LoginInput struct {
 }
 
 type LoginResponse struct {
-	ID    int64  `json:"id"`
-	Name  string `json:"name"`
-	Email string `json:"email"`
+	ID       int64  `json:"id"`
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Username string `json:"username"`
+	PhotoURL string `json:"photoUrl"`
+}
+
+type UpdateProfileInput struct {
+	UserID   int64  `json:"userId"`
+	Name     string `json:"name"`
+	Username string `json:"username"`
+	PhotoURL string `json:"photoUrl"`
 }
 
 type WatchedInput struct {
@@ -94,6 +106,8 @@ type WatchedItem struct {
 	EpisodeNumber int64  `json:"episodeNumber"`
 	WatchedAt     string `json:"watchedAt"`
 }
+
+var usernamePattern = regexp.MustCompile(`^[a-z0-9._]{3,30}$`)
 
 func NewStore() *Store {
 	return &Store{
@@ -141,6 +155,9 @@ func main() {
 	if err := ensureUsersTable(db); err != nil {
 		log.Fatal(err)
 	}
+	if err := ensureUsersProfileColumns(db); err != nil {
+		log.Fatal(err)
+	}
 	if err := ensureWatchedTable(db); err != nil {
 		log.Fatal(err)
 	}
@@ -158,6 +175,7 @@ func main() {
 	mux.HandleFunc("DELETE /api/series/", app.store.handleDeleteSeries)
 	mux.HandleFunc("POST /api/auth/register", app.handleRegister)
 	mux.HandleFunc("POST /api/auth/login", app.handleLogin)
+	mux.HandleFunc("PATCH /api/auth/profile", app.handleUpdateProfile)
 	mux.HandleFunc("GET /api/user/watched", app.handleListWatched)
 	mux.HandleFunc("POST /api/user/watched", app.handleUpsertWatched)
 	mux.HandleFunc("DELETE /api/user/watched", app.handleDeleteWatched)
@@ -201,6 +219,28 @@ func ensureUsersTable(db *sql.DB) error {
 	return nil
 }
 
+func ensureUsersProfileColumns(db *sql.DB) error {
+	if err := addUsersColumnIfMissing(db, "username", "TEXT"); err != nil {
+		return err
+	}
+	if err := addUsersColumnIfMissing(db, "photo_url", "TEXT NOT NULL DEFAULT ''"); err != nil {
+		return err
+	}
+	return nil
+}
+
+func addUsersColumnIfMissing(db *sql.DB, columnName string, columnDef string) error {
+	query := fmt.Sprintf("ALTER TABLE users ADD COLUMN %s %s", columnName, columnDef)
+	if _, err := db.Exec(query); err != nil {
+		lower := strings.ToLower(err.Error())
+		if strings.Contains(lower, "duplicate column name") {
+			return nil
+		}
+		return fmt.Errorf("failed adding users.%s column: %w", columnName, err)
+	}
+	return nil
+}
+
 func ensureWatchedTable(db *sql.DB) error {
 	query := `
     CREATE TABLE IF NOT EXISTS watched_items (
@@ -220,6 +260,79 @@ func ensureWatchedTable(db *sql.DB) error {
 	}
 
 	return nil
+}
+
+func normalizeUsernameInput(raw string) (string, error) {
+	normalized := strings.ToLower(strings.TrimSpace(raw))
+	normalized = strings.TrimPrefix(normalized, "@")
+	if !usernamePattern.MatchString(normalized) {
+		return "", fmt.Errorf("username must have 3-30 chars: letters, numbers, . or _")
+	}
+	return normalized, nil
+}
+
+func usernameTaken(db *sql.DB, username string, excludeUserID int64) (bool, error) {
+	query := "SELECT COUNT(1) FROM users WHERE lower(coalesce(username, '')) = lower(?)"
+	args := []any{username}
+	if excludeUserID > 0 {
+		query += " AND id <> ?"
+		args = append(args, excludeUserID)
+	}
+
+	var count int
+	if err := db.QueryRow(query, args...).Scan(&count); err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+func usernameBaseFromNameOrEmail(name string, email string) string {
+	source := strings.ToLower(strings.TrimSpace(name))
+	if source == "" {
+		source = strings.ToLower(strings.TrimSpace(email))
+		if at := strings.Index(source, "@"); at > 0 {
+			source = source[:at]
+		}
+	}
+	if source == "" {
+		source = "user"
+	}
+
+	var builder strings.Builder
+	for _, char := range source {
+		if (char >= 'a' && char <= 'z') || (char >= '0' && char <= '9') || char == '.' || char == '_' {
+			builder.WriteRune(char)
+		}
+	}
+	base := builder.String()
+	base = strings.Trim(base, "._")
+	if len(base) < 3 {
+		base = "user"
+	}
+	if len(base) > 24 {
+		base = base[:24]
+	}
+	return base
+}
+
+func generateAvailableUsername(db *sql.DB, base string, excludeUserID int64) (string, error) {
+	if base == "" {
+		base = "user"
+	}
+
+	candidate := base
+	suffix := 1
+	for {
+		taken, err := usernameTaken(db, candidate, excludeUserID)
+		if err != nil {
+			return "", err
+		}
+		if !taken {
+			return candidate, nil
+		}
+		candidate = fmt.Sprintf("%s%d", base, suffix)
+		suffix++
+	}
 }
 
 func (a *App) handleRegister(w http.ResponseWriter, r *http.Request) {
@@ -253,11 +366,19 @@ func (a *App) handleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	usernameBase := usernameBaseFromNameOrEmail(in.Name, in.Email)
+	username, err := generateAvailableUsername(a.db, usernameBase, 0)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to prepare username")
+		return
+	}
+
 	result, err := a.db.Exec(
-		"INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
+		"INSERT INTO users (name, email, password_hash, username, photo_url) VALUES (?, ?, ?, ?, '')",
 		in.Name,
 		in.Email,
 		string(hashBytes),
+		username,
 	)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "unique constraint failed: users.email") {
@@ -271,9 +392,11 @@ func (a *App) handleRegister(w http.ResponseWriter, r *http.Request) {
 
 	id, _ := result.LastInsertId()
 	writeJSON(w, http.StatusCreated, RegisterResponse{
-		ID:    id,
-		Name:  in.Name,
-		Email: in.Email,
+		ID:       id,
+		Name:     in.Name,
+		Email:    in.Email,
+		Username: username,
+		PhotoURL: "",
 	})
 }
 
@@ -296,12 +419,14 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 		name         string
 		email        string
 		passwordHash string
+		username     sql.NullString
+		photoURL     sql.NullString
 	)
 
 	err := a.db.QueryRow(
-		"SELECT id, name, email, password_hash FROM users WHERE email = ? LIMIT 1",
+		"SELECT id, name, email, password_hash, username, photo_url FROM users WHERE email = ? LIMIT 1",
 		in.Email,
-	).Scan(&id, &name, &email, &passwordHash)
+	).Scan(&id, &name, &email, &passwordHash, &username, &photoURL)
 	if err == sql.ErrNoRows {
 		writeError(w, http.StatusUnauthorized, "invalid credentials")
 		return
@@ -316,10 +441,98 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	resolvedUsername := strings.TrimSpace(username.String)
+	if resolvedUsername == "" {
+		usernameBase := usernameBaseFromNameOrEmail(name, email)
+		generatedUsername, genErr := generateAvailableUsername(a.db, usernameBase, id)
+		if genErr == nil {
+			resolvedUsername = generatedUsername
+			_, _ = a.db.Exec("UPDATE users SET username = ? WHERE id = ?", resolvedUsername, id)
+		}
+	}
+
 	writeJSON(w, http.StatusOK, LoginResponse{
-		ID:    id,
-		Name:  name,
-		Email: email,
+		ID:       id,
+		Name:     name,
+		Email:    email,
+		Username: resolvedUsername,
+		PhotoURL: strings.TrimSpace(photoURL.String),
+	})
+}
+
+func (a *App) handleUpdateProfile(w http.ResponseWriter, r *http.Request) {
+	var in UpdateProfileInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json body")
+		return
+	}
+
+	in.Name = strings.TrimSpace(in.Name)
+	in.PhotoURL = strings.TrimSpace(in.PhotoURL)
+
+	if in.UserID <= 0 {
+		writeError(w, http.StatusBadRequest, "userId is required")
+		return
+	}
+	if in.Name == "" {
+		writeError(w, http.StatusBadRequest, "name is required")
+		return
+	}
+	if len(in.Name) > 80 {
+		writeError(w, http.StatusBadRequest, "name is too long")
+		return
+	}
+	if len(in.PhotoURL) > 450000 {
+		writeError(w, http.StatusBadRequest, "photoUrl is too long")
+		return
+	}
+
+	username, err := normalizeUsernameInput(in.Username)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	taken, err := usernameTaken(a.db, username, in.UserID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to validate username")
+		return
+	}
+	if taken {
+		writeError(w, http.StatusConflict, "username already in use")
+		return
+	}
+
+	result, err := a.db.Exec(
+		"UPDATE users SET name = ?, username = ?, photo_url = ? WHERE id = ?",
+		in.Name,
+		username,
+		in.PhotoURL,
+		in.UserID,
+	)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to update profile")
+		return
+	}
+
+	affected, _ := result.RowsAffected()
+	if affected == 0 {
+		writeError(w, http.StatusNotFound, "user not found")
+		return
+	}
+
+	var email string
+	if queryErr := a.db.QueryRow("SELECT email FROM users WHERE id = ? LIMIT 1", in.UserID).Scan(&email); queryErr != nil {
+		writeError(w, http.StatusInternalServerError, "failed to load user profile")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, LoginResponse{
+		ID:       in.UserID,
+		Name:     in.Name,
+		Email:    email,
+		Username: username,
+		PhotoURL: in.PhotoURL,
 	})
 }
 
