@@ -1202,6 +1202,63 @@ button.secondary {
   cursor: not-allowed;
 }
 
+.episode-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: grid;
+  place-items: center;
+  background: rgba(3, 5, 12, 0.76);
+  backdrop-filter: blur(2px);
+  padding: 1rem;
+}
+
+.episode-confirm-modal {
+  width: min(460px, 100%);
+  border-radius: 14px;
+  border: 1px solid rgba(255, 120, 120, 0.52);
+  background: linear-gradient(170deg, rgba(72, 8, 8, 0.97), rgba(35, 4, 4, 0.98));
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.52);
+  padding: 0.95rem 0.95rem 0.8rem;
+}
+
+.episode-confirm-title {
+  margin: 0;
+  color: #ffe2e2;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.episode-confirm-text {
+  margin: 0.45rem 0 0;
+  color: #ffd3d3;
+  line-height: 1.35;
+}
+
+.episode-confirm-actions {
+  margin-top: 0.85rem;
+  display: flex;
+  gap: 0.45rem;
+}
+
+.episode-confirm-button {
+  flex: 1;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 157, 157, 0.45);
+  font-weight: 700;
+  padding: 0.5rem 0.62rem;
+  color: #fff3f3;
+}
+
+.episode-confirm-button.secondary {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.episode-confirm-button.primary {
+  background: linear-gradient(140deg, #9b0f0f, #cf1d1d);
+  border-color: rgba(255, 174, 174, 0.7);
+}
+
 .season-episode-cards {
   list-style: none;
   margin: 0;
