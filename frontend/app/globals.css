@@ -1465,7 +1465,583 @@ button.secondary {
   padding: 0.56rem 0.9rem;
 }
 
+.my-series-page .header {
+  margin-bottom: 0.65rem;
+}
+
+.my-series-page {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  min-height: calc(100vh - 56px);
+}
+
+.my-series-surface {
+  --my-series-split: calc((100vh - 56px) * 0.34);
+  position: relative;
+  overflow: hidden;
+  min-height: calc(100vh - 56px);
+  background: linear-gradient(160deg, #0a1322 0%, #070d18 60%, #050910 100%);
+  padding: 1rem 1rem 1.6rem;
+}
+
+.my-series-surface.is-series {
+  --my-series-split: calc((100vh - 56px) * 0.34);
+}
+
+.my-series-surface.is-movies {
+  --my-series-split: calc((100vh - 56px) * 0.34);
+}
+
+.my-series-surface.is-stats {
+  --my-series-split: calc((100vh - 56px) * 0.34);
+}
+
+.my-series-blue-poster {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--my-series-split);
+  overflow: hidden;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.my-series-blue-poster-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.2;
+  filter: blur(1px) saturate(1.08);
+  transform: scale(1.04);
+}
+
+.my-series-surface::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--my-series-split);
+  bottom: 0;
+  border-top-left-radius: 28px;
+  border-top-right-radius: 28px;
+  background: linear-gradient(180deg, #5f07099f 0%, #5c0408 38%, #5c0408 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.my-series-inner {
+  position: relative;
+  z-index: 2;
+  max-width: 1360px;
+  margin: 0 auto;
+  min-height: 0;
+}
+
+.my-series-inner.is-movies {
+  min-height: calc(100vh - 56px - 2.6rem);
+}
+
+.my-series-selected-layer {
+  position: absolute;
+  top: var(--my-series-split);
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.6rem;
+  pointer-events: none;
+}
+
+.my-series-mode-menu {
+  pointer-events: auto;
+  position: absolute;
+  left: -10.5rem;
+  top: calc(var(--my-series-split) - 4.2rem);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.45rem;
+  z-index: 3;
+  width: max-content;
+}
+
+.my-series-mode-item {
+  appearance: none;
+  border: 1px solid rgba(206, 216, 236, 0.35);
+  background: rgba(17, 30, 52, 0.8);
+  color: #e6ebf7;
+  border-radius: 9px;
+  padding: 0.42rem 0.8rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-decoration: none;
+  text-align: center;
+  cursor: pointer;
+  min-width: 110px;
+}
+
+.my-series-mode-item[aria-disabled="true"] {
+  opacity: 0.82;
+  cursor: default;
+}
+
+.my-series-mode-item.is-active {
+  background: linear-gradient(120deg, #8d0c0a, #6f0907);
+  border-color: rgba(180, 16, 13, 0.7);
+  color: #fff;
+}
+
+.my-series-selected-card {
+  pointer-events: auto;
+  display: block;
+  width: 170px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 18px rgba(3, 8, 18, 0.58);
+}
+
+.my-series-next-episode-card {
+  pointer-events: auto;
+  width: min(660px, calc(100vw - 300px));
+  min-height: 220px;
+  border-radius: 12px;
+  border: 1px solid rgba(192, 214, 255, 0.32);
+  background: #15233a;
+  box-shadow: 0 12px 20px rgba(2, 9, 21, 0.42);
+  display: grid;
+  grid-template-columns: 290px 1fr;
+  overflow: hidden;
+}
+
+.my-series-next-episode-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  background: #23314d;
+}
+
+.my-series-next-episode-image-empty {
+  min-height: 220px;
+  background: linear-gradient(130deg, #1e2c45, #2e456f);
+}
+
+.my-series-next-episode-content {
+  padding: 0.85rem 0.9rem 0.75rem;
+  color: #18253b;
+  background: linear-gradient(150deg, rgba(203, 210, 220, 0.96), rgba(196, 202, 214, 0.9));
+}
+
+.my-series-next-episode-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.my-series-next-episode-code {
+  color: #8d0c0a;
+}
+
+.my-series-next-episode-date {
+  margin: 0.35rem 0 0;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #3a4a67;
+}
+
+.my-series-next-episode-overview {
+  margin: 0.75rem 0 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: #1f2d45;
+}
+
+.my-series-next-episode-action {
+  margin-top: 0.85rem;
+  border: none;
+  border-radius: 8px;
+  background: #8d0c0a;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 800;
+  padding: 0.55rem 0.9rem;
+  cursor: pointer;
+}
+
+.my-series-next-episode-action:disabled {
+  opacity: 0.75;
+  cursor: default;
+}
+
+.my-series-next-episode-status {
+  margin: 0;
+  padding: 0.9rem;
+  font-size: 0.9rem;
+  color: #1d2a42;
+}
+
+.my-series-next-episode-status.is-error {
+  color: #7a1313;
+}
+
+.my-series-strip {
+  margin-top: calc(var(--my-series-split) + 7.4rem);
+  display: flex;
+  gap: 0.7rem;
+  overflow-x: auto;
+  padding: 0.2rem 0.05rem 0.3rem;
+}
+
+.my-series-strip.is-movies {
+  position: absolute;
+  top: calc(var(--my-series-split) + 0.1rem);
+  left: -172px;
+  right: 0;
+  margin-top: 0;
+}
+
+.my-series-card {
+  appearance: none;
+  display: block;
+  min-width: 150px;
+  width: 150px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: #0d1322;
+  text-align: left;
+  padding: 0;
+  cursor: pointer;
+}
+
+.my-series-card.is-selected {
+  border-color: #1fa6ff;
+  box-shadow: 0 0 0 2px rgba(31, 166, 255, 0.35);
+}
+
+.my-series-card-image {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  display: block;
+}
+
+.my-series-card-image-empty {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.my-series-card-count-bar {
+  display: block;
+  padding: 0.3rem 0.45rem;
+  background: rgba(255, 255, 255, 0.95);
+  color: #1b2438;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.my-series-done {
+  margin-top: calc(var(--my-series-split) + 2.4rem);
+}
+
+.my-series-stats-overview {
+  position: absolute;
+  top: calc(var(--my-series-split) - 6.2rem);
+  left: 22%;
+  right: 9%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+  z-index: 3;
+}
+
+.my-series-surface.is-movies .my-series-stats-overview {
+  top: calc(var(--my-series-split) - 8.2rem);
+}
+
+.my-series-stats-overview-card {
+  border-radius: 12px;
+  border: 1px solid rgba(179, 197, 226, 0.3);
+  background: linear-gradient(140deg, rgba(10, 22, 41, 0.84), rgba(7, 16, 31, 0.74));
+  padding: 0.7rem 0.9rem;
+}
+
+.my-series-stats-overview-label {
+  margin: 0;
+  color: #8d0c0a;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.my-series-stats-overview-value {
+  margin: 0.35rem 0 0;
+  color: #f4f8ff;
+  font-size: 1.3rem;
+  font-weight: 900;
+}
+
+.my-series-stats-board {
+  margin-top: calc(var(--my-series-split) + 0.3rem);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #d3d7dd;
+  border: 1px solid rgba(196, 206, 219, 0.48);
+}
+
+.my-series-stats-header {
+  min-height: 56px;
+  display: grid;
+  grid-template-columns: 56px 1fr 56px;
+  align-items: center;
+  border-bottom: 1px solid rgba(36, 54, 80, 0.16);
+}
+
+.my-series-stats-title {
+  margin: 0;
+  text-align: center;
+  color: #21385a;
+  font-size: 1.08rem;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.my-series-stats-nav {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: #21385a;
+  font-size: 1.4rem;
+  cursor: pointer;
+}
+
+.my-series-stats-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  min-height: 34px;
+  border-bottom: 1px solid rgba(36, 54, 80, 0.14);
+}
+
+.my-series-stats-weekdays span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #253b5f;
+  font-weight: 700;
+  font-size: 0.78rem;
+}
+
+.my-series-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.my-series-stats-day {
+  min-height: 108px;
+  padding: 0.35rem 0.35rem 0.45rem;
+  border-right: 1px solid rgba(36, 54, 80, 0.12);
+  border-bottom: 1px solid rgba(36, 54, 80, 0.12);
+}
+
+.my-series-stats-day:nth-child(7n) {
+  border-right: none;
+}
+
+.my-series-stats-day.is-outside {
+  opacity: 0.5;
+}
+
+.my-series-stats-day-number {
+  display: block;
+  text-align: right;
+  color: #2b4266;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.my-series-stats-day-content {
+  margin-top: 0.4rem;
+}
+
+.my-series-stats-avatars {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  padding-left: 0.55rem;
+}
+
+.my-series-stats-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 2px solid rgba(244, 247, 252, 0.95);
+  background: #263c61;
+}
+
+.my-series-stats-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.my-series-stats-avatar-empty {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #2f4b76, #49689b);
+}
+
+.my-series-stats-episodes {
+  margin: 0.2rem 0 0;
+  text-align: center;
+  color: #223958;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.my-series-heatmap {
+  border-top: 1px solid rgba(36, 54, 80, 0.14);
+  background: rgba(229, 233, 240, 0.9);
+  padding: 0.65rem;
+  display: flex;
+  justify-content: center;
+}
+
+.my-series-heatmap-grid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 11px;
+  grid-template-rows: repeat(7, 11px);
+  gap: 2px;
+  width: max-content;
+}
+
+.my-series-heatmap-cell {
+  position: relative;
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  border: 1px solid rgba(34, 52, 78, 0.08);
+}
+
+.my-series-heatmap-cell.is-outside {
+  opacity: 0.48;
+}
+
+.my-series-heatmap-day {
+  display: none;
+}
+
+.my-series-heatmap-cell::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  opacity: 0;
+  pointer-events: none;
+  white-space: nowrap;
+  background: rgba(13, 22, 38, 0.96);
+  color: #eef3ff;
+  font-size: 0.72rem;
+  padding: 0.32rem 0.42rem;
+  border-radius: 6px;
+  transition: opacity 120ms ease;
+  z-index: 3;
+}
+
+.my-series-heatmap-cell:hover::after {
+  opacity: 1;
+}
+
 @media (max-width: 760px) {
+  .my-series-inner {
+    min-height: auto;
+  }
+
+  .my-series-selected-layer {
+    position: static;
+    transform: none;
+    margin-top: 0.95rem;
+    margin-bottom: 0.95rem;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .my-series-mode-menu {
+    position: static;
+    flex-direction: row;
+    justify-content: center;
+    flex-wrap: wrap;
+    transform: none;
+  }
+
+  .my-series-next-episode-card {
+    width: 100%;
+    grid-template-columns: 1fr;
+  }
+
+  .my-series-next-episode-image,
+  .my-series-next-episode-image-empty {
+    min-height: 140px;
+    max-height: 180px;
+  }
+
+  .my-series-strip {
+    margin-top: 0.2rem;
+  }
+
+  .my-series-strip.is-movies {
+    position: static;
+    top: auto;
+    left: auto;
+    right: auto;
+    margin-top: 0.2rem;
+  }
+
+  .my-series-done {
+    margin-top: 0.95rem;
+  }
+
+  .my-series-stats-board {
+    margin-top: 0.35rem;
+  }
+
+  .my-series-stats-overview {
+    position: static;
+    margin-top: 0.35rem;
+    margin-bottom: 0.55rem;
+    grid-template-columns: 1fr;
+  }
+
+  .my-series-stats-day {
+    min-height: 88px;
+  }
+
+  .my-series-stats-avatars {
+    padding-left: 0.25rem;
+  }
+
+  .my-series-heatmap-grid {
+    grid-auto-columns: 9px;
+    grid-template-rows: repeat(7, 9px);
+    gap: 2px;
+  }
+
+  .my-series-heatmap-cell {
+    width: 9px;
+    height: 9px;
+  }
+
   .site-nav {
     min-height: 52px;
     grid-template-columns: 1fr;
