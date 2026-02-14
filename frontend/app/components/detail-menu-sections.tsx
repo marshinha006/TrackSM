@@ -326,6 +326,16 @@ export default function DetailMenuSections({ cast, mediaType, tmdbId, seasons }:
     setPreviousEpisodesConfirm(null);
   }
 
+  async function markSelectedSeasonAsWatched() {
+    if (!userId || !selectedSeason || episodeToggleLoadingKey) return;
+    const keysToMark = selectedSeason.episodes
+      .map((episode) => `${selectedSeason.seasonNumber}:${episode.episodeNumber}`)
+      .filter((key) => !watchedEpisodeKeys.has(key));
+
+    if (!keysToMark.length) return;
+    await upsertEpisodeWatched(keysToMark, getTodayValue(), `season:${selectedSeason.seasonNumber}`);
+  }
+
   async function toggleEpisodeWatched(seasonNumber: number, episodeNumber: number) {
     if (!userId || episodeToggleLoadingKey) return;
     const key = `${seasonNumber}:${episodeNumber}`;
@@ -486,9 +496,26 @@ export default function DetailMenuSections({ cast, mediaType, tmdbId, seasons }:
 
                 {selectedSeason ? (
                   <div className="season-panel">
-                    <p className="season-heading">
-                      {selectedSeason.seasonName} ({selectedSeason.episodeCount} episodios)
-                    </p>
+                    <div className="season-heading-row">
+                      <p className="season-heading">
+                        {selectedSeason.seasonName} ({selectedSeason.episodeCount} episodios)
+                      </p>
+                      <button
+                        type="button"
+                        className="season-mark-all-button"
+                        onClick={() => void markSelectedSeasonAsWatched()}
+                        disabled={
+                          !userId ||
+                          Boolean(episodeToggleLoadingKey) ||
+                          !selectedSeason.episodes.some(
+                            (episode) =>
+                              !watchedEpisodeKeys.has(`${selectedSeason.seasonNumber}:${episode.episodeNumber}`),
+                          )
+                        }
+                      >
+                        Marcar temporada como vista
+                      </button>
+                    </div>
                     <ul className="season-episode-cards">
                       {selectedSeason.episodes.map((episode) => {
                         const episodeKey = `${selectedSeason.seasonNumber}:${episode.episodeNumber}`;
