@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
+import { getApiBaseUrl } from "../lib/api-base-url";
 
 type StatusState = {
   type: "idle" | "error";
   message: string;
 };
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+const API_BASE_URL = getApiBaseUrl();
 
 export default function LoginForm() {
   const router = useRouter();

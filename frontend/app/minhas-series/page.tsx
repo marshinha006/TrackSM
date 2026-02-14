@@ -94,6 +94,10 @@ function getMonthLabel(date: Date): string {
   return new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(date);
 }
 
+function getTodayValue(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function formatMinutes(totalMinutes: number): string {
   if (totalMinutes <= 0) return "0 min";
   const hours = Math.floor(totalMinutes / 60);
@@ -121,6 +125,7 @@ export default function MinhasSeriesPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isEpisodeLoading, setIsEpisodeLoading] = useState(false);
   const [isMarkingEpisode, setIsMarkingEpisode] = useState(false);
+  const [watchedDate, setWatchedDate] = useState<string>(getTodayValue());
   const [watchedTvItems, setWatchedTvItems] = useState<WatchedItem[]>([]);
   const [watchedMovieItems, setWatchedMovieItems] = useState<WatchedItem[]>([]);
   const [seriesPosterById, setSeriesPosterById] = useState<Map<number, string | null>>(new Map());
@@ -408,6 +413,7 @@ export default function MinhasSeriesPage() {
           tmdbId: selectedSeries.id,
           seasonNumber: nextEpisodeToWatch.seasonNumber,
           episodeNumber: nextEpisodeToWatch.episodeNumber,
+          watchedAt: watchedDate,
         }),
       });
 
@@ -442,7 +448,7 @@ export default function MinhasSeriesPage() {
           tmdbId: selectedSeries.id,
           seasonNumber: nextEpisodeToWatch.seasonNumber,
           episodeNumber: nextEpisodeToWatch.episodeNumber,
-          watchedAt: new Date().toISOString(),
+          watchedAt: `${watchedDate}T12:00:00Z`,
         },
       ]);
     } catch (error) {
@@ -569,6 +575,17 @@ export default function MinhasSeriesPage() {
                       {nextEpisodeToWatch.overview?.trim() ? (
                         <p className="my-series-next-episode-overview">{nextEpisodeToWatch.overview.trim()}</p>
                       ) : null}
+                      <label className="watched-date-field my-series-next-episode-date-field">
+                        <span>Data vista</span>
+                        <input
+                          type="date"
+                          className="watched-date-input"
+                          value={watchedDate}
+                          onChange={(event) => setWatchedDate(event.target.value)}
+                          max={getTodayValue()}
+                          disabled={!auth?.id || isMarkingEpisode}
+                        />
+                      </label>
                       <button
                         type="button"
                         className="my-series-next-episode-action"

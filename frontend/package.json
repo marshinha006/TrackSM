@@ -4,8 +4,10 @@
   "version": "0.1.0",
   "scripts": {
     "clean": "cmd /c if exist .next rmdir /s /q .next",
-    "dev": "npm run clean && next dev --turbo",
-    "dev:webpack": "npm run clean && next dev",
+    "dev": "next dev --turbo",
+    "dev:lan": "next dev --turbo -H 0.0.0.0 -p 3000",
+    "dev:webpack": "next dev",
+    "dev:lan:webpack": "next dev -H 0.0.0.0 -p 3000",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"

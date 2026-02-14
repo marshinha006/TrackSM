@@ -33,6 +33,16 @@ npm run dev
 
 App em `http://localhost:3000`.
 
+Para abrir no celular (mesma rede Wi-Fi):
+
+```bash
+cd frontend
+npm run dev:lan:webpack
+```
+
+Depois acesse `http://SEU_IP_LOCAL:3000` no celular (ex.: `http://192.168.1.10:3000`).
+Se der timeout, libere a porta `3000` no Firewall do Windows para rede privada.
+
 Se quiser alterar a URL da API no frontend:
 
 ```bash
