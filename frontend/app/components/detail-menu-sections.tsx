@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { getApiBaseUrl } from "../lib/api-base-url";
 
 type CastPerson = {
   id: number;
@@ -39,7 +41,7 @@ type WatchedItem = {
   episodeNumber: number;
 };
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+const API_BASE_URL = getApiBaseUrl();
 
 function roleLabel(character: string): "Dublagem" | "Atuacao" {
   const normalized = character.toLowerCase();
@@ -196,17 +198,23 @@ export default function DetailMenuSections({ cast, mediaType, tmdbId, seasons }:
               <ul className="detail-cast-grid">
                 {castPreview.map((person) => (
                   <li className="detail-cast-item" key={person.id}>
-                    {person.profileUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img className="detail-cast-photo" src={person.profileUrl} alt={person.name} loading="lazy" />
-                    ) : (
-                      <div className="detail-cast-photo detail-cast-photo-empty" aria-hidden="true" />
-                    )}
-                    <div className="detail-cast-text">
-                      <p className="detail-cast-name">{person.name}</p>
-                      <p className="detail-cast-role">{person.character || "Personagem nao informado"}</p>
-                      <p className="detail-cast-tag">{roleLabel(person.character || "")}</p>
-                    </div>
+                    <Link
+                      href={`/pessoa/${person.id}?name=${encodeURIComponent(person.name)}`}
+                      className="detail-cast-link"
+                      aria-label={`Ver trabalhos de ${person.name}`}
+                    >
+                      {person.profileUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img className="detail-cast-photo" src={person.profileUrl} alt={person.name} loading="lazy" />
+                      ) : (
+                        <div className="detail-cast-photo detail-cast-photo-empty" aria-hidden="true" />
+                      )}
+                      <div className="detail-cast-text">
+                        <p className="detail-cast-name">{person.name}</p>
+                        <p className="detail-cast-role">{person.character || "Personagem nao informado"}</p>
+                        <p className="detail-cast-tag">{roleLabel(person.character || "")}</p>
+                      </div>
+                    </Link>
                   </li>
                 ))}
               </ul>

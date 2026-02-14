@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { getApiBaseUrl } from "../lib/api-base-url";
 
 type StoredAuth = {
   id?: number;
@@ -54,7 +55,7 @@ type MovieSummary = {
 type MySeriesView = "series" | "movies" | "stats";
 type StatsMediaType = "tv" | "movie";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+const API_BASE_URL = getApiBaseUrl();
 const MY_SERIES_VIEW_MODE_KEY = "tracksm_my_series_view_mode";
 
 function sortSeriesProgress(progress: SeriesProgress[]): SeriesProgress[] {

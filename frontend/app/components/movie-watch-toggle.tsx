@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getApiBaseUrl } from "../lib/api-base-url";
 
 type StoredAuth = {
   id?: number;
@@ -15,7 +16,7 @@ type MovieWatchToggleProps = {
   tmdbId: string;
 };
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+const API_BASE_URL = getApiBaseUrl();
 
 export default function MovieWatchToggle({ tmdbId }: MovieWatchToggleProps) {
   const [userId, setUserId] = useState<number | null>(null);

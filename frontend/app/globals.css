@@ -1150,13 +1150,23 @@ button.secondary {
 }
 
 .detail-cast-item {
+  display: block;
+  padding: 0.35rem;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.detail-cast-link {
   display: grid;
   grid-template-columns: 42px 1fr;
   gap: 0.55rem;
   align-items: center;
-  padding: 0.35rem;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.06);
+  text-decoration: none;
+  width: 100%;
+}
+
+.detail-cast-link:hover .detail-cast-name {
+  text-decoration: underline;
 }
 
 .detail-cast-photo {
