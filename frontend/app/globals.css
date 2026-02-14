@@ -1040,6 +1040,34 @@ button.secondary {
   font-size: 0.92rem;
 }
 
+.season-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+  margin-bottom: 0.52rem;
+}
+
+.season-heading-row .season-heading {
+  margin: 0;
+}
+
+.season-mark-all-button {
+  border: 1px solid rgba(255, 167, 167, 0.55);
+  border-radius: 10px;
+  background: linear-gradient(140deg, #8f0c0c, #c01818);
+  color: #fff4f4;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 0.34rem 0.58rem;
+  white-space: nowrap;
+}
+
+.season-mark-all-button:disabled {
+  opacity: 0.62;
+  cursor: default;
+}
+
 .episode-watch-actions {
   margin-top: 0.42rem;
   display: flex;
