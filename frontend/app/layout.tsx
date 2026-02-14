@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Space_Grotesk } from "next/font/google";
 import Link from "next/link";
 import NavAuth from "./components/nav-auth";
+import NavSearch from "./components/nav-search";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -48,6 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </span>
             </Link>
             <div className="nav-spacer">
+              <NavSearch />
               <NavAuth />
             </div>
           </nav>

@@ -127,6 +127,10 @@ body::before {
 
 .nav-spacer {
   justify-self: end;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 1rem;
 }
 
 .nav-auth-link {
@@ -147,6 +151,151 @@ body::before {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.nav-search {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.nav-search-input-wrap {
+  width: 0;
+  margin-right: 0;
+  overflow: hidden;
+  transition: width 220ms ease, margin-right 220ms ease;
+}
+
+.nav-search-input-wrap.is-open {
+  width: 290px;
+  margin-right: 0.75rem;
+}
+
+.nav-search-input {
+  width: 100%;
+  height: 34px;
+  border-radius: 9px;
+  border: 1px solid rgba(218, 227, 248, 0.28);
+  background: rgba(11, 22, 40, 0.88);
+  color: #f3f7ff;
+  font-size: 0.88rem;
+  padding: 0 0.65rem;
+  outline: none;
+}
+
+.nav-search-input::placeholder {
+  color: #9eb0ce;
+}
+
+.nav-search-toggle {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid rgba(219, 228, 248, 0.28);
+  background: rgba(11, 22, 40, 0.78);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.nav-search-toggle svg {
+  width: 22px;
+  height: 22px;
+  fill: #eff5ff;
+}
+
+.nav-search-panel {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  width: min(520px, calc(100vw - 1rem));
+  max-height: min(44vh, 320px);
+  overflow: auto;
+  border-radius: 10px;
+  border: 1px solid rgba(166, 182, 213, 0.24);
+  background: rgba(4, 10, 20, 0.97);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.42);
+  z-index: 70;
+}
+
+.nav-search-status {
+  padding: 0.55rem 0.8rem;
+  color: #b7c5de;
+  font-size: 0.82rem;
+  border-bottom: 1px solid rgba(124, 143, 177, 0.18);
+}
+
+.nav-search-table-wrap {
+  overflow: auto;
+}
+
+.nav-search-panel::-webkit-scrollbar,
+.nav-search-table-wrap::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.nav-search-panel::-webkit-scrollbar-track,
+.nav-search-table-wrap::-webkit-scrollbar-track {
+  background: rgba(20, 31, 50, 0.65);
+}
+
+.nav-search-panel::-webkit-scrollbar-thumb,
+.nav-search-table-wrap::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #8d0c0a, #5f0707);
+  border-radius: 999px;
+  border: 2px solid rgba(20, 31, 50, 0.65);
+}
+
+.nav-search-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: #dbe5f7;
+  font-size: 0.88rem;
+}
+
+.nav-search-table th,
+.nav-search-table td {
+  border-bottom: 1px solid rgba(112, 132, 164, 0.17);
+  padding: 0.5rem 0.45rem;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.nav-search-table th {
+  color: #9fb1cf;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.nav-search-poster {
+  width: 36px;
+  height: 52px;
+  object-fit: cover;
+  border-radius: 4px;
+  display: block;
+}
+
+.nav-search-poster-empty {
+  width: 36px;
+  height: 52px;
+  border-radius: 4px;
+  display: block;
+  background: linear-gradient(150deg, #1d2d49, #304b75);
+}
+
+.nav-search-title-link {
+  color: #e8f1ff;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.nav-search-title-link:hover {
+  color: #ffffff;
+  text-decoration: underline;
 }
 
 .nav-welcome {
