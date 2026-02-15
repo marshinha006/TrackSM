@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 type SearchResult = {
   id: number;
-  mediaType: "movie" | "tv";
+  mediaType: "movie" | "tv" | "person";
   title: string;
   posterUrl: string | null;
   year: string;
@@ -101,7 +101,7 @@ export default function NavSearch() {
         <input
           ref={inputRef}
           className="nav-search-input"
-          placeholder="Buscar filme ou serie..."
+          placeholder="Buscar filme, serie, ator ou diretor..."
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
@@ -148,7 +148,11 @@ export default function NavSearch() {
                       </td>
                       <td>
                         <Link
-                          href={`/detalhe/${item.mediaType === "movie" ? "filme" : "serie"}/${item.id}`}
+                          href={
+                            item.mediaType === "person"
+                              ? `/pessoa/${item.id}?name=${encodeURIComponent(item.title)}`
+                              : `/detalhe/${item.mediaType === "movie" ? "filme" : "serie"}/${item.id}`
+                          }
                           className="nav-search-title-link"
                           onClick={() => setIsOpen(false)}
                         >
