@@ -6,12 +6,14 @@ type TmdbSearchItem = {
   title?: string;
   name?: string;
   poster_path?: string | null;
+  profile_path?: string | null;
   release_date?: string;
   first_air_date?: string;
   vote_count?: number;
+  known_for_department?: string;
 };
 
-type TmdbMediaItem = TmdbSearchItem & { media_type: "movie" | "tv" };
+type TmdbRenderableItem = TmdbSearchItem & { media_type: "movie" | "tv" | "person" };
 
 type TmdbSearchResponse = {
   results?: TmdbSearchItem[];
@@ -23,7 +25,7 @@ type TmdbTvDetail = {
 
 type SearchResult = {
   id: number;
-  mediaType: "movie" | "tv";
+  mediaType: "movie" | "tv" | "person";
   title: string;
   posterUrl: string | null;
   year: string;
@@ -37,9 +39,17 @@ const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 const TMDB_POSTER_URL = "https://image.tmdb.org/t/p/w154";
 
 function extractYear(item: TmdbSearchItem): string {
+  if (item.media_type === "person") return "-";
   const raw = item.media_type === "movie" ? item.release_date : item.first_air_date;
   if (!raw || raw.length < 4) return "-";
   return raw.slice(0, 4);
+}
+
+function personTypeLabel(item: TmdbSearchItem): string {
+  const dept = (item.known_for_department || "").toLowerCase();
+  if (dept.includes("direct")) return "Diretor(a)";
+  if (dept.includes("act")) return "Ator/Atriz";
+  return "Pessoa";
 }
 
 async function fetchTvEpisodesCount(tvId: number): Promise<number | null> {
@@ -76,7 +86,7 @@ export async function GET(request: NextRequest) {
 
   const data = (await response.json()) as TmdbSearchResponse;
   const filtered = (data.results ?? [])
-    .filter((item): item is TmdbMediaItem => item.media_type === "movie" || item.media_type === "tv")
+    .filter((item): item is TmdbRenderableItem => item.media_type === "movie" || item.media_type === "tv" || item.media_type === "person")
     .slice(0, 14);
 
   const tvEpisodeMap = new Map<number, number | null>();
@@ -92,9 +102,16 @@ export async function GET(request: NextRequest) {
     id: item.id,
     mediaType: item.media_type,
     title: item.title || item.name || `Item ${item.id}`,
-    posterUrl: item.poster_path ? `${TMDB_POSTER_URL}${item.poster_path}` : null,
+    posterUrl:
+      item.media_type === "person"
+        ? item.profile_path
+          ? `${TMDB_POSTER_URL}${item.profile_path}`
+          : null
+        : item.poster_path
+          ? `${TMDB_POSTER_URL}${item.poster_path}`
+          : null,
     year: extractYear(item),
-    typeLabel: item.media_type === "movie" ? "Filme" : "Serie",
+    typeLabel: item.media_type === "movie" ? "Filme" : item.media_type === "tv" ? "Serie" : personTypeLabel(item),
     rank: typeof item.vote_count === "number" ? item.vote_count : null,
     episodes: item.media_type === "tv" ? tvEpisodeMap.get(item.id) ?? null : null,
   }));
