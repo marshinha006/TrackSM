@@ -33,6 +33,11 @@ const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 const TMDB_STILL_URL = "https://image.tmdb.org/t/p/w780";
 
+function isGenericEpisodeTitle(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  return /^epis[oó]dio\s+\d+$/.test(normalized) || /^episode\s+\d+$/.test(normalized);
+}
+
 function parseId(raw: string | null): number {
   const parsed = Number(raw);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : 0;
@@ -48,12 +53,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "id invalido" }, { status: 400 });
   }
 
-  const params = new URLSearchParams({
+  const paramsPt = new URLSearchParams({
     api_key: TMDB_API_KEY,
     language: "pt-BR",
   });
+  const paramsEn = new URLSearchParams({
+    api_key: TMDB_API_KEY,
+    language: "en-US",
+  });
 
-  const tvResponse = await fetch(`${TMDB_BASE_URL}/tv/${id}?${params.toString()}`, {
+  const tvResponse = await fetch(`${TMDB_BASE_URL}/tv/${id}?${paramsPt.toString()}`, {
     next: { revalidate: 3600 },
   });
 
@@ -69,22 +78,50 @@ export async function GET(request: NextRequest) {
 
   const seasonDetails = await Promise.all(
     seasons.map(async (seasonNumber) => {
-      const seasonResponse = await fetch(`${TMDB_BASE_URL}/tv/${id}/season/${seasonNumber}?${params.toString()}`, {
-        next: { revalidate: 3600 },
-      });
-      if (!seasonResponse.ok) return [] as TvEpisodeSummary[];
+      const [seasonPtResponse, seasonEnResponse] = await Promise.all([
+        fetch(`${TMDB_BASE_URL}/tv/${id}/season/${seasonNumber}?${paramsPt.toString()}`, {
+          next: { revalidate: 3600 },
+        }),
+        fetch(`${TMDB_BASE_URL}/tv/${id}/season/${seasonNumber}?${paramsEn.toString()}`, {
+          next: { revalidate: 3600 },
+        }),
+      ]);
 
-      const seasonData = (await seasonResponse.json()) as TmdbSeasonDetail;
-      return (seasonData.episodes ?? [])
+      if (!seasonPtResponse.ok && !seasonEnResponse.ok) return [] as TvEpisodeSummary[];
+
+      const seasonPtData = seasonPtResponse.ok
+        ? ((await seasonPtResponse.json()) as TmdbSeasonDetail)
+        : ({ episodes: [] } as TmdbSeasonDetail);
+      const seasonEnData = seasonEnResponse.ok
+        ? ((await seasonEnResponse.json()) as TmdbSeasonDetail)
+        : ({ episodes: [] } as TmdbSeasonDetail);
+
+      const enNameByEpisode = new Map<number, string>(
+        (seasonEnData.episodes ?? [])
+          .filter((episode) => episode.episode_number > 0)
+          .map((episode) => [episode.episode_number, episode.name?.trim() || ""]),
+      );
+
+      return (seasonPtData.episodes ?? [])
         .filter((episode) => episode.episode_number > 0)
-        .map((episode) => ({
-          seasonNumber,
-          episodeNumber: episode.episode_number,
-          name: episode.name?.trim() || `Episodio ${episode.episode_number}`,
-          airDate: episode.air_date ?? null,
-          stillUrl: episode.still_path ? `${TMDB_STILL_URL}${episode.still_path}` : null,
-          overview: episode.overview ?? "",
-        }));
+        .map((episode) => {
+          const ptName = episode.name?.trim() || "";
+          const enName = enNameByEpisode.get(episode.episode_number) || "";
+          const resolvedName =
+            !ptName || isGenericEpisodeTitle(ptName)
+              ? enName && !isGenericEpisodeTitle(enName)
+                ? enName
+                : ptName || enName
+              : ptName;
+          return {
+            seasonNumber,
+            episodeNumber: episode.episode_number,
+            name: resolvedName || `Episodio ${episode.episode_number}`,
+            airDate: episode.air_date ?? null,
+            stillUrl: episode.still_path ? `${TMDB_STILL_URL}${episode.still_path}` : null,
+            overview: episode.overview ?? "",
+          };
+        });
     }),
   );
 

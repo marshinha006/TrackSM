@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { WheelEvent, useEffect, useMemo, useState } from "react";
+import { WheelEvent, useEffect, useMemo, useRef, useState } from "react";
 import { getApiBaseUrl } from "../lib/api-base-url";
 
 type StoredAuth = {
@@ -22,6 +22,9 @@ type TvSummary = {
   name: string;
   posterUrl: string | null;
   backdropUrl: string | null;
+  logoUrl: string | null;
+  showStatus: string | null;
+  firstAirDate: string | null;
   totalEpisodes: number | null;
   averageEpisodeRuntime: number | null;
 };
@@ -31,6 +34,9 @@ type SeriesProgress = {
   name: string;
   posterUrl: string | null;
   backdropUrl: string | null;
+  logoUrl: string | null;
+  showStatus: string | null;
+  firstAirDate: string | null;
   watchedEpisodes: number;
   remainingEpisodes: number | null;
   totalEpisodes: number | null;
@@ -52,7 +58,18 @@ type MovieSummary = {
   runtime: number | null;
 };
 
-type MySeriesView = "series" | "movies" | "stats";
+type SeriesHistoryItem = SeriesProgress & {
+  status: "completed" | "in_progress";
+  lastActivityAt: string | null;
+  watchedMinutes: number | null;
+  progressPercent: number;
+};
+
+type HistoryColumnKey = "image" | "status" | "pending" | "showStatus" | "year" | "timeSpent" | "progress";
+type HistorySortKey = "name" | "status" | "pending" | "showStatus" | "year" | "timeSpent" | "progress";
+type SortDirection = "asc" | "desc";
+
+type MySeriesView = "series" | "history" | "movies" | "stats";
 type StatsMediaType = "tv" | "movie";
 
 const API_BASE_URL = getApiBaseUrl();
@@ -107,6 +124,34 @@ function formatMinutes(totalMinutes: number): string {
   return `${hours}h ${minutes}min`;
 }
 
+function formatHistoryDate(input: string | null): string {
+  if (!input) return "Data indisponivel";
+  const parsed = new Date(input);
+  if (Number.isNaN(parsed.getTime())) return "Data indisponivel";
+  return parsed.toLocaleDateString("pt-BR");
+}
+
+function showStatusLabel(raw: string | null): string {
+  if (!raw) return "Desconhecido";
+  const normalized = raw.toLowerCase();
+  if (normalized === "ended") return "Encerrada";
+  if (normalized === "returning series") return "Em exibicao";
+  if (normalized === "canceled") return "Cancelada";
+  if (normalized === "in production") return "Em producao";
+  if (normalized === "planned") return "Planejada";
+  return raw;
+}
+
+function showStatusSortRank(raw: string | null): number {
+  const label = showStatusLabel(raw).toLowerCase();
+  if (label === "cancelada") return 0;
+  if (label === "encerrada" || label === "finalizado") return 1;
+  if (label === "planejada" || label === "em breve") return 2;
+  if (label === "em exibicao") return 3;
+  if (label === "em producao") return 4;
+  return 5;
+}
+
 export default function MinhasSeriesPage() {
   const [auth, setAuth] = useState<StoredAuth | null>(null);
   const [seriesProgress, setSeriesProgress] = useState<SeriesProgress[]>([]);
@@ -134,6 +179,23 @@ export default function MinhasSeriesPage() {
   const [moviePosterById, setMoviePosterById] = useState<Map<number, string | null>>(new Map());
   const [movieTitleById, setMovieTitleById] = useState<Map<number, string>>(new Map());
   const [movieRuntimeById, setMovieRuntimeById] = useState<Map<number, number | null>>(new Map());
+  const [historySearch, setHistorySearch] = useState<string>("");
+  const [historyStatusFilter, setHistoryStatusFilter] = useState<"all" | "pending" | "up_to_date">("all");
+  const [historySort, setHistorySort] = useState<{ key: HistorySortKey | null; direction: SortDirection }>({
+    key: null,
+    direction: "desc",
+  });
+  const [isHistoryColumnsMenuOpen, setIsHistoryColumnsMenuOpen] = useState(false);
+  const [visibleHistoryColumns, setVisibleHistoryColumns] = useState<Record<HistoryColumnKey, boolean>>({
+    image: true,
+    status: true,
+    pending: true,
+    showStatus: true,
+    year: true,
+    timeSpent: true,
+    progress: true,
+  });
+  const historyColumnsMenuRef = useRef<HTMLDivElement | null>(null);
 
   function handleHorizontalWheel(event: WheelEvent<HTMLElement>) {
     const container = event.currentTarget;
@@ -150,6 +212,147 @@ export default function MinhasSeriesPage() {
     () => seriesProgress.filter((series) => series.remainingEpisodes !== null && series.remainingEpisodes > 0),
     [seriesProgress],
   );
+  const seriesHistory = useMemo<SeriesHistoryItem[]>(() => {
+    const lastActivityBySeries = new Map<number, number>();
+
+    for (const item of watchedTvItems) {
+      const parsed = item.watchedAt ? Date.parse(item.watchedAt) : Number.NaN;
+      if (Number.isNaN(parsed)) continue;
+      const current = lastActivityBySeries.get(item.tmdbId) ?? 0;
+      if (parsed > current) {
+        lastActivityBySeries.set(item.tmdbId, parsed);
+      }
+    }
+
+    return seriesProgress
+      .map((series) => {
+        const totalEpisodes = series.totalEpisodes ?? null;
+        const progressPercent =
+          totalEpisodes && totalEpisodes > 0 ? Math.min(100, Math.round((series.watchedEpisodes / totalEpisodes) * 100)) : 0;
+        const lastActivityTimestamp = lastActivityBySeries.get(series.id) ?? null;
+        const runtimePerEpisode = seriesRuntimeById.get(series.id) ?? null;
+        const watchedMinutes =
+          runtimePerEpisode && runtimePerEpisode > 0 ? runtimePerEpisode * series.watchedEpisodes : null;
+        const status: "completed" | "in_progress" =
+          totalEpisodes && totalEpisodes > 0 && series.remainingEpisodes === 0 ? "completed" : "in_progress";
+
+        return {
+          ...series,
+          status,
+          lastActivityAt: lastActivityTimestamp ? new Date(lastActivityTimestamp).toISOString() : null,
+          watchedMinutes,
+          progressPercent,
+        };
+      })
+      .sort((a, b) => {
+        const aTime = a.lastActivityAt ? Date.parse(a.lastActivityAt) : 0;
+        const bTime = b.lastActivityAt ? Date.parse(b.lastActivityAt) : 0;
+        if (aTime !== bTime) return bTime - aTime;
+        return a.name.localeCompare(b.name);
+      });
+  }, [seriesProgress, watchedTvItems, seriesRuntimeById]);
+  const filteredSeriesHistory = useMemo(() => {
+    const query = historySearch.trim().toLowerCase();
+    const filtered = seriesHistory.filter((series) => {
+      const matchesQuery = !query || series.name.toLowerCase().includes(query);
+      const matchesStatus =
+        historyStatusFilter === "all" ||
+        (historyStatusFilter === "up_to_date" && series.status === "completed") ||
+        (historyStatusFilter === "pending" && series.status === "in_progress");
+      return matchesQuery && matchesStatus;
+    });
+
+    if (!historySort.key) {
+      // Default order follows watch history (already sorted by last activity desc in seriesHistory).
+      return filtered;
+    }
+
+    const sorted = [...filtered].sort((a, b) => {
+      switch (historySort.key) {
+        case "name":
+          return a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" });
+        case "status": {
+          const rankA = a.status === "in_progress" ? 0 : 1;
+          const rankB = b.status === "in_progress" ? 0 : 1;
+          return rankA - rankB;
+        }
+        case "pending": {
+          const valA = a.remainingEpisodes ?? Number.MAX_SAFE_INTEGER;
+          const valB = b.remainingEpisodes ?? Number.MAX_SAFE_INTEGER;
+          return valA - valB;
+        }
+        case "showStatus": {
+          const rankA = showStatusSortRank(a.showStatus);
+          const rankB = showStatusSortRank(b.showStatus);
+          if (rankA !== rankB) return rankA - rankB;
+          return showStatusLabel(a.showStatus).localeCompare(showStatusLabel(b.showStatus), "pt-BR", { sensitivity: "base" });
+        }
+        case "year": {
+          const yearA = Number(a.firstAirDate?.slice(0, 4)) || 0;
+          const yearB = Number(b.firstAirDate?.slice(0, 4)) || 0;
+          return yearA - yearB;
+        }
+        case "timeSpent": {
+          const minA = a.watchedMinutes ?? -1;
+          const minB = b.watchedMinutes ?? -1;
+          return minA - minB;
+        }
+        case "progress":
+          return a.progressPercent - b.progressPercent;
+        default:
+          return 0;
+      }
+    });
+
+    return historySort.direction === "asc" ? sorted : sorted.reverse();
+  }, [historySearch, historyStatusFilter, seriesHistory, historySort]);
+  const historyGridTemplate = useMemo(() => {
+    const parts: string[] = [];
+    if (visibleHistoryColumns.image) parts.push("200px");
+    parts.push("minmax(180px, 1.5fr)");
+    if (visibleHistoryColumns.status) parts.push("minmax(130px, 0.95fr)");
+    if (visibleHistoryColumns.pending) parts.push("88px");
+    if (visibleHistoryColumns.showStatus) parts.push("minmax(130px, 0.95fr)");
+    if (visibleHistoryColumns.year) parts.push("72px");
+    if (visibleHistoryColumns.timeSpent) parts.push("100px");
+    if (visibleHistoryColumns.progress) parts.push("minmax(180px, 1.25fr)");
+    return parts.join(" ");
+  }, [visibleHistoryColumns]);
+
+  function toggleHistorySort(key: HistorySortKey) {
+    setHistorySort((prev) => {
+      if (prev.key === key) {
+        return { key, direction: prev.direction === "asc" ? "desc" : "asc" };
+      }
+      return { key, direction: "asc" };
+    });
+  }
+
+  function sortIndicator(key: HistorySortKey): string {
+    if (!historySort.key || historySort.key !== key) return "<>";
+    return historySort.direction === "asc" ? "^" : "v";
+  }
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (historyColumnsMenuRef.current?.contains(target)) return;
+      setIsHistoryColumnsMenuOpen(false);
+    }
+
+    function handleEsc(event: KeyboardEvent) {
+      if (event.key === "Escape") setIsHistoryColumnsMenuOpen(false);
+    }
+
+    if (!isHistoryColumnsMenuOpen) return;
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEsc);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEsc);
+    };
+  }, [isHistoryColumnsMenuOpen]);
 
   const selectedSeries =
     seriesWithRemainingEpisodes.find((series) => series.id === selectedSeriesId) ?? seriesWithRemainingEpisodes[0] ?? null;
@@ -244,8 +447,17 @@ export default function MinhasSeriesPage() {
       }
 
       const savedViewMode = localStorage.getItem(MY_SERIES_VIEW_MODE_KEY);
-      if (savedViewMode === "series" || savedViewMode === "movies" || savedViewMode === "stats") {
-        setViewMode(savedViewMode);
+      if (savedViewMode === "completed") {
+        setViewMode("history");
+        return;
+      }
+      if (
+        savedViewMode === "series" ||
+        savedViewMode === "history" ||
+        savedViewMode === "movies" ||
+        savedViewMode === "stats"
+      ) {
+        setViewMode(savedViewMode as MySeriesView);
       }
     } catch {
       setAuth(null);
@@ -328,6 +540,9 @@ export default function MinhasSeriesPage() {
               name: summary?.name ?? `Serie ${id}`,
               posterUrl: summary?.posterUrl ?? null,
               backdropUrl: summary?.backdropUrl ?? null,
+              logoUrl: summary?.logoUrl ?? null,
+              showStatus: summary?.showStatus ?? null,
+              firstAirDate: summary?.firstAirDate ?? null,
               watchedEpisodes,
               remainingEpisodes:
                 totalEpisodes && totalEpisodes > 0 ? Math.max(totalEpisodes - watchedEpisodes, 0) : null,
@@ -536,6 +751,13 @@ export default function MinhasSeriesPage() {
               </button>
               <button
                 type="button"
+                className={`my-series-mode-item${viewMode === "history" ? " is-active" : ""}`}
+                onClick={() => setViewMode("history")}
+              >
+                Historico
+              </button>
+              <button
+                type="button"
                 className={`my-series-mode-item${viewMode === "stats" ? " is-active" : ""}`}
                 onClick={() => setViewMode("stats")}
               >
@@ -657,6 +879,205 @@ export default function MinhasSeriesPage() {
                   )}
                 </Link>
               ))}
+            </section>
+          ) : null}
+
+          {!isLoading && !errorMessage && viewMode === "history" && !seriesHistory.length ? (
+            <p className="subtitle my-series-done">Voce ainda nao tem historico de series.</p>
+          ) : null}
+
+          {!isLoading && !errorMessage && viewMode === "history" && seriesHistory.length ? (
+            <section
+              className="my-series-completed-board"
+              aria-label="Historico geral de series"
+              style={{ ["--my-history-grid" as string]: historyGridTemplate }}
+            >
+              <div className="my-series-history-toolbar is-embedded">
+                <div className="my-series-history-tools-left">
+                  <input
+                    type="search"
+                    className="my-series-history-search"
+                    value={historySearch}
+                    onChange={(event) => setHistorySearch(event.target.value)}
+                    placeholder="Buscar series..."
+                    aria-label="Buscar serie por nome"
+                  />
+                  <select
+                    className="my-series-history-status-select"
+                    value={historyStatusFilter}
+                    onChange={(event) => setHistoryStatusFilter(event.target.value as "all" | "pending" | "up_to_date")}
+                    aria-label="Filtrar por status"
+                  >
+                    <option value="all">Status</option>
+                    <option value="pending">Em andamento</option>
+                    <option value="up_to_date">Concluido</option>
+                  </select>
+                </div>
+                <div className="my-series-history-tools-right">
+                  <span className="my-series-history-count">
+                    {filteredSeriesHistory.length}/{seriesHistory.length} series
+                  </span>
+                  <div className="my-series-history-columns" ref={historyColumnsMenuRef}>
+                    <button
+                      type="button"
+                      className="my-series-history-view-btn"
+                      onClick={() => setIsHistoryColumnsMenuOpen((prev) => !prev)}
+                      aria-expanded={isHistoryColumnsMenuOpen}
+                    >
+                      Visualizar
+                    </button>
+                    {isHistoryColumnsMenuOpen ? (
+                      <div className="my-series-history-columns-menu" role="menu" aria-label="Colunas visiveis">
+                        <p className="my-series-history-columns-title">Alternar colunas</p>
+                        {(
+                          [
+                            ["image", "Imagem"],
+                            ["status", "Status"],
+                            ["pending", "Pendente"],
+                            ["showStatus", "Status da serie"],
+                            ["year", "Ano"],
+                            ["timeSpent", "Tempo assistido"],
+                            ["progress", "Progresso"],
+                          ] as Array<[HistoryColumnKey, string]>
+                        ).map(([key, label]) => (
+                          <button
+                            type="button"
+                            key={key}
+                            className={`my-series-history-columns-item${visibleHistoryColumns[key] ? " is-active" : ""}`}
+                            onClick={() =>
+                              setVisibleHistoryColumns((prev) => ({
+                                ...prev,
+                                [key]: !prev[key],
+                              }))
+                            }
+                          >
+                            <span className="my-series-history-columns-check" aria-hidden="true">
+                              {visibleHistoryColumns[key] ? "✓" : ""}
+                            </span>
+                            <span>{label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+              {!filteredSeriesHistory.length ? (
+                <p className="subtitle my-series-done my-series-history-empty">Nenhuma serie encontrada para essa busca.</p>
+              ) : null}
+              {filteredSeriesHistory.length ? (
+                <>
+              <header className="my-series-completed-head">
+                {visibleHistoryColumns.image ? <span>Imagem</span> : null}
+                <button type="button" className="my-series-sort-head" onClick={() => toggleHistorySort("name")}>
+                  Nome <span aria-hidden="true">{sortIndicator("name")}</span>
+                </button>
+                {visibleHistoryColumns.status ? (
+                  <button type="button" className="my-series-sort-head" onClick={() => toggleHistorySort("status")}>
+                    Status <span aria-hidden="true">{sortIndicator("status")}</span>
+                  </button>
+                ) : null}
+                {visibleHistoryColumns.pending ? (
+                  <button type="button" className="my-series-sort-head my-series-completed-head-pending" onClick={() => toggleHistorySort("pending")}>
+                    Pendente <span aria-hidden="true">{sortIndicator("pending")}</span>
+                  </button>
+                ) : null}
+                {visibleHistoryColumns.showStatus ? (
+                  <button type="button" className="my-series-sort-head" onClick={() => toggleHistorySort("showStatus")}>
+                    Status da serie <span aria-hidden="true">{sortIndicator("showStatus")}</span>
+                  </button>
+                ) : null}
+                {visibleHistoryColumns.year ? (
+                  <button type="button" className="my-series-sort-head" onClick={() => toggleHistorySort("year")}>
+                    Ano <span aria-hidden="true">{sortIndicator("year")}</span>
+                  </button>
+                ) : null}
+                {visibleHistoryColumns.timeSpent ? (
+                  <button type="button" className="my-series-sort-head" onClick={() => toggleHistorySort("timeSpent")}>
+                    Tempo assistido <span aria-hidden="true">{sortIndicator("timeSpent")}</span>
+                  </button>
+                ) : null}
+                {visibleHistoryColumns.progress ? (
+                  <button type="button" className="my-series-sort-head" onClick={() => toggleHistorySort("progress")}>
+                    Progresso <span aria-hidden="true">{sortIndicator("progress")}</span>
+                  </button>
+                ) : null}
+              </header>
+              <div className="my-series-completed-list">
+                {filteredSeriesHistory.map((series) => (
+                  <article className="my-series-completed-row" key={series.id}>
+                    {visibleHistoryColumns.image ? (
+                      <Link
+                        href={`/detalhe/serie/${series.id}`}
+                        className="my-series-completed-image-link"
+                        aria-label={`Abrir ${series.name}`}
+                      >
+                        {series.backdropUrl || series.posterUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            className="my-series-completed-image"
+                            src={series.backdropUrl ?? series.posterUrl ?? ""}
+                            alt={series.name}
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="my-series-completed-image my-series-completed-image-empty" />
+                        )}
+                        {series.logoUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img className="my-series-completed-image-logo" src={series.logoUrl} alt="" loading="lazy" />
+                        ) : null}
+                      </Link>
+                    ) : null}
+                    <Link
+                      href={`/detalhe/serie/${series.id}`}
+                      className="my-series-completed-main"
+                      aria-label={`Abrir ${series.name}`}
+                    >
+                      <span className="my-series-completed-name">{series.name}</span>
+                    </Link>
+                    {visibleHistoryColumns.status ? (
+                      <span className={`my-series-history-status is-${series.status}`}>
+                        {series.status === "completed" ? "Concluido" : "Em andamento"}
+                      </span>
+                    ) : null}
+                    {visibleHistoryColumns.pending ? (
+                      <span className="my-series-history-pending">
+                        {series.remainingEpisodes !== null ? series.remainingEpisodes : "-"}
+                      </span>
+                    ) : null}
+                    {visibleHistoryColumns.showStatus ? (
+                      <span className="my-series-completed-value">{showStatusLabel(series.showStatus)}</span>
+                    ) : null}
+                    {visibleHistoryColumns.year ? (
+                      <span className="my-series-completed-value">
+                        {series.firstAirDate?.slice(0, 4) || "-"}
+                      </span>
+                    ) : null}
+                    {visibleHistoryColumns.timeSpent ? (
+                      <span className="my-series-completed-value">
+                        {series.watchedMinutes && series.watchedMinutes > 0 ? formatMinutes(series.watchedMinutes) : "n/d"}
+                      </span>
+                    ) : null}
+                    {visibleHistoryColumns.progress ? (
+                      <div className="my-series-completed-progress-wrap">
+                        <div
+                          className="my-series-completed-progress"
+                          role="progressbar"
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-valuenow={series.progressPercent}
+                        >
+                          <span style={{ width: `${series.progressPercent}%` }} />
+                        </div>
+                        <span className="my-series-completed-percent">{series.progressPercent}%</span>
+                      </div>
+                    ) : null}
+                  </article>
+                ))}
+              </div>
+                </>
+              ) : null}
             </section>
           ) : null}
 
