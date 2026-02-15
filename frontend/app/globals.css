@@ -1317,6 +1317,9 @@ button.secondary {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.12);
   position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 210px;
 }
 
 .season-episode-thumb-wrap {
@@ -1339,6 +1342,10 @@ button.secondary {
 .season-episode-body {
   padding: 0.5rem 0.6rem 0.6rem;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 126px;
 }
 
 .season-episode-number {
@@ -1352,10 +1359,14 @@ button.secondary {
   color: #e8eefc;
   font-size: 0.88rem;
   font-weight: 700;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .season-episode-date {
-  margin: 0.2rem 0 0;
+  margin: 0.34rem 0 0;
   color: #c9d5f3;
   font-size: 0.8rem;
 }
@@ -1371,6 +1382,11 @@ button.secondary {
   overflow: hidden;
 }
 
+.episode-watch-actions {
+  margin-top: auto;
+  padding-top: 0.55rem;
+}
+
 @media (min-width: 1024px) {
   .season-episode-cards {
     grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -1378,16 +1394,16 @@ button.secondary {
   }
 
   .season-episode-body {
-    padding: 0.34rem 0.38rem 0.42rem;
+    padding: 0.42rem 0.44rem 0.5rem;
+    min-height: 102px;
   }
 
   .season-episode-title {
     font-size: 0.74rem;
     line-height: 1.2;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    white-space: nowrap;
     overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .season-episode-number {
@@ -1395,7 +1411,7 @@ button.secondary {
   }
 
   .season-episode-date {
-    margin-top: 0.16rem;
+    margin-top: 0.22rem;
     font-size: 0.7rem;
   }
 
