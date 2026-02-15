@@ -11,8 +11,16 @@ type CastPerson = {
   profileUrl: string | null;
 };
 
+type CrewPerson = {
+  id: number;
+  name: string;
+  profileUrl: string | null;
+};
+
 type DetailMenuSectionsProps = {
   cast: CastPerson[];
+  directorMembers: CrewPerson[];
+  writerMembers: CrewPerson[];
   mediaType: "movie" | "tv";
   tmdbId: string;
   seasons: SeasonPanelData[];
@@ -106,7 +114,14 @@ function formatDate(value?: string): string {
   return new Date(`${value}T00:00:00`).toLocaleDateString("pt-BR");
 }
 
-export default function DetailMenuSections({ cast, mediaType, tmdbId, seasons }: DetailMenuSectionsProps) {
+export default function DetailMenuSections({
+  cast,
+  directorMembers,
+  writerMembers,
+  mediaType,
+  tmdbId,
+  seasons,
+}: DetailMenuSectionsProps) {
   const [activeSection, setActiveSection] = useState<ActiveSection>(mediaType === "tv" ? "seasons" : null);
   const [selectedSeasonNumber, setSelectedSeasonNumber] = useState<number>(seasons[0]?.seasonNumber ?? 1);
   const [userId, setUserId] = useState<number | null>(null);
@@ -118,6 +133,7 @@ export default function DetailMenuSections({ cast, mediaType, tmdbId, seasons }:
   const [previousEpisodesConfirm, setPreviousEpisodesConfirm] = useState<PreviousEpisodesConfirmState | null>(null);
 
   const castPreview = useMemo(() => cast.slice(0, 16), [cast]);
+  const hasCrewInfo = directorMembers.length > 0 || writerMembers.length > 0;
   const selectedSeason =
     seasons.find((season) => season.seasonNumber === selectedSeasonNumber) ?? seasons[0] ?? null;
   const isExpanded = activeSection !== null;
@@ -433,29 +449,93 @@ export default function DetailMenuSections({ cast, mediaType, tmdbId, seasons }:
         {activeSection === "cast" ? (
           <div className="detail-expandable-panel" role="region" aria-label="Elenco do filme ou serie">
             {castPreview.length ? (
-              <ul className="detail-cast-grid">
-                {castPreview.map((person) => (
-                  <li className="detail-cast-item" key={person.id}>
-                    <Link
-                      href={`/pessoa/${person.id}?name=${encodeURIComponent(person.name)}`}
-                      className="detail-cast-link"
-                      aria-label={`Ver trabalhos de ${person.name}`}
-                    >
-                      {person.profileUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img className="detail-cast-photo" src={person.profileUrl} alt={person.name} loading="lazy" />
-                      ) : (
-                        <div className="detail-cast-photo detail-cast-photo-empty" aria-hidden="true" />
-                      )}
-                      <div className="detail-cast-text">
-                        <p className="detail-cast-name">{person.name}</p>
-                        <p className="detail-cast-role">{person.character || "Personagem nao informado"}</p>
-                        <p className="detail-cast-tag">{roleLabel(person.character || "")}</p>
-                      </div>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              <>
+                <ul className="detail-cast-grid">
+                  {castPreview.map((person) => (
+                    <li className="detail-cast-item" key={person.id}>
+                      <Link
+                        href={`/pessoa/${person.id}?name=${encodeURIComponent(person.name)}`}
+                        className="detail-cast-link"
+                        aria-label={`Ver trabalhos de ${person.name}`}
+                      >
+                        {person.profileUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img className="detail-cast-photo" src={person.profileUrl} alt={person.name} loading="lazy" />
+                        ) : (
+                          <div className="detail-cast-photo detail-cast-photo-empty" aria-hidden="true" />
+                        )}
+                        <div className="detail-cast-text">
+                          <p className="detail-cast-name">{person.name}</p>
+                          <p className="detail-cast-role">{person.character || "Personagem nao informado"}</p>
+                          <p className="detail-cast-tag">{roleLabel(person.character || "")}</p>
+                        </div>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+                {hasCrewInfo ? (
+                  <>
+                    <div className="detail-cast-separator" aria-hidden="true" />
+                    <div className="detail-crew-grid" aria-label="Equipe principal">
+                      {directorMembers.length ? (
+                        <>
+                          <p className="detail-crew-heading">Diretor</p>
+                          <ul className="detail-cast-grid">
+                            {directorMembers.map((person) => (
+                              <li className="detail-cast-item" key={`director-${person.id}`}>
+                                <Link
+                                  href={`/pessoa/${person.id}?name=${encodeURIComponent(person.name)}`}
+                                  className="detail-cast-link"
+                                  aria-label={`Ver trabalhos de ${person.name}`}
+                                >
+                                  {person.profileUrl ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img className="detail-cast-photo" src={person.profileUrl} alt={person.name} loading="lazy" />
+                                  ) : (
+                                    <div className="detail-cast-photo detail-cast-photo-empty" aria-hidden="true" />
+                                  )}
+                                  <div className="detail-cast-text">
+                                    <p className="detail-cast-name">{person.name}</p>
+                                    <p className="detail-cast-tag">Diretor</p>
+                                  </div>
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        </>
+                      ) : null}
+
+                      {writerMembers.length ? (
+                        <>
+                          <p className="detail-crew-heading">Roteirista</p>
+                          <ul className="detail-cast-grid">
+                            {writerMembers.map((person) => (
+                              <li className="detail-cast-item" key={`writer-${person.id}`}>
+                                <Link
+                                  href={`/pessoa/${person.id}?name=${encodeURIComponent(person.name)}`}
+                                  className="detail-cast-link"
+                                  aria-label={`Ver trabalhos de ${person.name}`}
+                                >
+                                  {person.profileUrl ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img className="detail-cast-photo" src={person.profileUrl} alt={person.name} loading="lazy" />
+                                  ) : (
+                                    <div className="detail-cast-photo detail-cast-photo-empty" aria-hidden="true" />
+                                  )}
+                                  <div className="detail-cast-text">
+                                    <p className="detail-cast-name">{person.name}</p>
+                                    <p className="detail-cast-tag">Roteirista</p>
+                                  </div>
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        </>
+                      ) : null}
+                    </div>
+                  </>
+                ) : null}
+              </>
             ) : (
               <p className="detail-expandable-empty">Nao foi possivel carregar elenco para este titulo.</p>
             )}
