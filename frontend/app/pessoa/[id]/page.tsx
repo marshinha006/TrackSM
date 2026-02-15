@@ -9,6 +9,7 @@ type CreditItem = {
   poster_path: string | null;
   vote_average?: number;
   character?: string;
+  job?: string;
   release_date?: string;
   first_air_date?: string;
   popularity?: number;
@@ -16,6 +17,7 @@ type CreditItem = {
 
 type PersonCombinedCredits = {
   cast?: CreditItem[];
+  crew?: CreditItem[];
 };
 
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
@@ -32,9 +34,23 @@ function toAppMediaType(mediaType: "movie" | "tv"): "filme" | "serie" {
   return mediaType === "movie" ? "filme" : "serie";
 }
 
+function roleText(item: CreditItem): string {
+  const character = item.character?.trim() ?? "";
+  const job = item.job?.trim() ?? "";
+  const characterLower = character.toLowerCase();
+
+  if (job) return job;
+  if (!character) return "";
+  if (characterLower === "self" || characterLower === "himself" || characterLower === "herself") {
+    return "Participacao";
+  }
+  return character;
+}
+
 function renderCard(item: CreditItem) {
   const title = item.title ?? item.name ?? "Sem titulo";
   const fillPercent = Math.max(0, Math.min(100, (item.vote_average ?? 0) * 10));
+  const role = roleText(item);
 
   return (
     <Link className="card-link" href={`/detalhe/${toAppMediaType(item.media_type)}/${item.id}`} key={`${item.media_type}-${item.id}`}>
@@ -55,8 +71,9 @@ function renderCard(item: CreditItem) {
           Nota {(item.vote_average ?? 0).toFixed(1)}
         </div>
       </article>
-      <p className="subtitle" style={{ marginTop: "0.35rem" }}>
-        {formatYear(item)}{item.character ? ` - ${item.character}` : ""}
+      <p className="person-credit-title">{title}</p>
+      <p className="subtitle person-credit-meta">
+        {formatYear(item)}{role ? ` - ${role}` : ""}
       </p>
     </Link>
   );
@@ -99,13 +116,31 @@ export default async function PessoaPage({
   try {
     const data = await fetchPersonCredits(id);
     const cast = data.cast ?? [];
+    const crew = data.crew ?? [];
+    const merged = [...crew, ...cast];
+    const uniqueByMedia = merged.reduce<Map<string, CreditItem>>((acc, item) => {
+      const key = `${item.media_type}-${item.id}`;
+      const existing = acc.get(key);
+      if (!existing) {
+        acc.set(key, item);
+        return acc;
+      }
 
-    const movies = cast
+      const existingHasJob = Boolean(existing.job?.trim());
+      const currentHasJob = Boolean(item.job?.trim());
+      if (!existingHasJob && currentHasJob) {
+        acc.set(key, item);
+      }
+      return acc;
+    }, new Map());
+    const credits = Array.from(uniqueByMedia.values());
+
+    const movies = credits
       .filter((item) => item.media_type === "movie")
       .sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0))
       .slice(0, 24);
 
-    const series = cast
+    const series = credits
       .filter((item) => item.media_type === "tv")
       .sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0))
       .slice(0, 24);

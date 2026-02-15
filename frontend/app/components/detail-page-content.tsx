@@ -33,6 +33,7 @@ type TmdbDetail = {
   };
   credits?: {
     cast?: TmdbCast[];
+    crew?: TmdbCrew[];
   };
   seasons?: TmdbSeasonSummary[];
 };
@@ -49,6 +50,15 @@ type TmdbCast = {
   id: number;
   name: string;
   character?: string;
+  profile_path: string | null;
+};
+
+type TmdbCrew = {
+  id: number;
+  name: string;
+  job?: string;
+  department?: string;
+  known_for_department?: string;
   profile_path: string | null;
 };
 
@@ -301,6 +311,48 @@ function pickStreamingProviders(data: TmdbWatchProvidersResponse): TmdbProvider[
   return [];
 }
 
+type CrewMember = {
+  id: number;
+  name: string;
+  profileUrl: string | null;
+};
+
+function pickCrewMembers(crew: TmdbCrew[] | undefined, role: "director" | "writer"): CrewMember[] {
+  if (!crew?.length) return [];
+  const filtered = crew.filter((person) => {
+    const job = (person.job ?? "").toLowerCase();
+    const department = (person.department ?? person.known_for_department ?? "").toLowerCase();
+
+    if (role === "director") {
+      return job.includes("director") || department === "directing";
+    }
+
+    return (
+      job.includes("writer") ||
+      job.includes("screenplay") ||
+      job.includes("teleplay") ||
+      job.includes("story") ||
+      job.includes("adaptation") ||
+      department === "writing"
+    );
+  });
+
+  const seen = new Set<string>();
+  return filtered
+    .filter((person) => {
+      const key = `${person.id}:${person.name.trim().toLowerCase()}`;
+      if (!person.name.trim() || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .map((person) => ({
+      id: person.id,
+      name: person.name,
+      profileUrl: person.profile_path ? `${TMDB_PROFILE_URL}${person.profile_path}` : null,
+    }))
+    .slice(0, 8);
+}
+
 export default async function DetailPage({ params }: { params: Promise<{ mediaType: string; id: string }> }) {
   const { mediaType, id } = await params;
   const tmdbMediaType = toTmdbMedia(mediaType);
@@ -328,6 +380,8 @@ export default async function DetailPage({ params }: { params: Promise<{ mediaTy
     character: person.character ?? "",
     profileUrl: person.profile_path ? `${TMDB_PROFILE_URL}${person.profile_path}` : null,
   })) ?? [];
+  const directorMembers = pickCrewMembers(detail.credits?.crew, "director");
+  const writerMembers = pickCrewMembers(detail.credits?.crew, "writer");
   const seasonsData = !isMovie ? await fetchTvSeasons(id, detail.seasons) : [];
   const runtimeText = isMovie ? formatRuntime(detail, true) : formatSeriesRuntime(detail, seasonsData);
 
@@ -442,7 +496,14 @@ export default async function DetailPage({ params }: { params: Promise<{ mediaTy
         </div>
       </section>
 
-      <DetailMenuSections cast={castMembers} mediaType={tmdbMediaType} tmdbId={id} seasons={seasonsData} />
+      <DetailMenuSections
+        cast={castMembers}
+        directorMembers={directorMembers}
+        writerMembers={writerMembers}
+        mediaType={tmdbMediaType}
+        tmdbId={id}
+        seasons={seasonsData}
+      />
     </main>
   );
 }

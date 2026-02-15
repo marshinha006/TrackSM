@@ -865,6 +865,21 @@ button.secondary {
   box-shadow: 0 16px 34px rgba(0, 0, 0, 0.34);
 }
 
+.person-credit-title {
+  margin: 0.42rem 0 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #f4f8ff;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.person-credit-meta {
+  margin-top: 0.2rem;
+}
+
 .detail-page {
   max-width: 1360px;
   margin: 0 auto;
@@ -1521,6 +1536,27 @@ button.secondary {
 .detail-meta {
   margin: 0.9rem 0 0;
   color: #dce6ff;
+}
+
+.detail-cast-separator {
+  margin: 0.75rem 0 0.6rem;
+  height: 1px;
+  width: 100%;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.1));
+}
+
+.detail-crew-grid {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.detail-crew-heading {
+  margin: 0.2rem 0 0.1rem;
+  color: #f4f8ff;
+  font-size: 0.84rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 .detail-genre-tags {
