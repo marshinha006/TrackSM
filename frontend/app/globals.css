@@ -1320,7 +1320,7 @@ button.secondary {
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 210px;
+  min-height: 224px;
 }
 
 .season-episode-thumb-wrap {
@@ -1380,7 +1380,7 @@ button.secondary {
   font-size: 0.8rem;
   line-height: 1.35;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -1396,9 +1396,13 @@ button.secondary {
     gap: 0.42rem;
   }
 
+  .season-episode-card {
+    min-height: 236px;
+  }
+
   .season-episode-body {
     padding: 0.42rem 0.44rem 0.5rem;
-    min-height: 102px;
+    min-height: 124px;
   }
 
   .season-episode-title {
@@ -1419,7 +1423,13 @@ button.secondary {
   }
 
   .season-episode-overview {
-    display: none;
+    margin-top: 0.22rem;
+    font-size: 0.68rem;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 }
 
@@ -3405,3 +3415,154 @@ button.secondary {
   }
 }
 
+.calendar-shell {
+  margin-top: 1rem;
+}
+
+.calendar-overview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin-bottom: 0.7rem;
+}
+
+.calendar-overview-card {
+  border-radius: 12px;
+  border: 1px solid rgba(179, 197, 226, 0.3);
+  background: linear-gradient(140deg, rgba(10, 22, 41, 0.84), rgba(7, 16, 31, 0.74));
+  padding: 0.7rem 0.9rem;
+}
+
+.calendar-overview-label {
+  margin: 0;
+  color: #8d0c0a;
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.calendar-overview-value {
+  margin: 0.35rem 0 0;
+  color: #f4f8ff;
+  font-size: 1.2rem;
+  font-weight: 900;
+}
+
+.calendar-board {
+  margin-top: 0;
+}
+
+.calendar-day-content {
+  margin-top: 0.25rem;
+}
+
+.calendar-day-count {
+  margin: 0.2rem 0 0;
+  color: #29466f;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.calendar-day-list {
+  list-style: none;
+  margin: 0.2rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.12rem;
+}
+
+.calendar-day-item-link {
+  color: #223f66;
+  font-size: 0.67rem;
+  font-weight: 700;
+  line-height: 1.18;
+  text-decoration: none;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calendar-day-item-link:hover {
+  color: #8d0c0a;
+}
+
+.calendar-day-more {
+  margin: 0.14rem 0 0;
+  color: #3d597f;
+  font-size: 0.64rem;
+  font-weight: 700;
+}
+
+.calendar-upcoming {
+  margin-top: 0.8rem;
+}
+
+.calendar-upcoming-title {
+  margin: 0;
+  color: #f1f5ff;
+  font-size: 1rem;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.calendar-upcoming-list {
+  list-style: none;
+  margin: 0.55rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.calendar-upcoming-item {
+  border-radius: 10px;
+  border: 1px solid rgba(190, 205, 235, 0.22);
+  background: rgba(8, 18, 33, 0.68);
+  padding: 0.5rem 0.58rem;
+}
+
+.calendar-upcoming-date {
+  display: block;
+  color: #8ca4ce;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.calendar-upcoming-link {
+  margin-top: 0.16rem;
+  display: block;
+  color: #e7f0ff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.calendar-upcoming-link:hover {
+  color: #ffcfb3;
+}
+
+@media (max-width: 760px) {
+  .calendar-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .calendar-board {
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .calendar-board .my-series-stats-header,
+  .calendar-board .my-series-stats-weekdays,
+  .calendar-board .my-series-stats-grid {
+    min-width: 860px;
+  }
+
+  .calendar-upcoming-title {
+    font-size: 0.94rem;
+  }
+
+  .calendar-upcoming-link {
+    font-size: 0.78rem;
+  }
+}
