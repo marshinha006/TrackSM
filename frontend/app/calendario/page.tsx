@@ -141,14 +141,7 @@ export default function CalendarioPage() {
         }
         const deduped = Array.from(uniqueByEpisode.values());
 
-        const watchedBySeries = new Map<number, Set<string>>();
-        for (const item of deduped) {
-          const current = watchedBySeries.get(item.tmdbId) ?? new Set<string>();
-          current.add(`${item.seasonNumber}:${item.episodeNumber}`);
-          watchedBySeries.set(item.tmdbId, current);
-        }
-
-        const seriesIds = Array.from(watchedBySeries.keys());
+        const seriesIds = Array.from(new Set(deduped.map((item) => item.tmdbId)));
         const summaries: TvSummary[] = [];
         const idChunks = chunkArray(seriesIds, 40);
         for (const idsChunk of idChunks) {
@@ -169,13 +162,11 @@ export default function CalendarioPage() {
             if (!episodesResponse.ok) return [] as UpcomingEpisode[];
 
             const episodes = (await episodesResponse.json()) as SeriesEpisode[];
-            const watchedSet = watchedBySeries.get(seriesId) ?? new Set<string>();
             const summary = summaryById.get(seriesId);
 
             return episodes.flatMap((episode) => {
               const dateKey = toDateKey(episode.airDate);
-              if (!dateKey || dateKey < today) return [];
-              if (watchedSet.has(`${episode.seasonNumber}:${episode.episodeNumber}`)) return [];
+              if (!dateKey) return [];
 
               return [
                 {
@@ -206,7 +197,9 @@ export default function CalendarioPage() {
         setUpcomingEpisodes(flattened);
 
         if (flattened.length > 0) {
-          const firstUpcomingDate = toMonthDate(flattened[0].airDate);
+          const nextEpisode = flattened.find((episode) => episode.airDate >= today);
+          const referenceEpisode = nextEpisode ?? flattened[flattened.length - 1];
+          const referenceDate = toMonthDate(referenceEpisode.airDate);
           const now = new Date();
           const hasCurrentMonthEpisodes = flattened.some(
             (episode) =>
@@ -215,7 +208,7 @@ export default function CalendarioPage() {
           );
 
           if (!hasCurrentMonthEpisodes) {
-            setStatsMonth(new Date(firstUpcomingDate.getFullYear(), firstUpcomingDate.getMonth(), 1));
+            setStatsMonth(new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1));
           }
         }
       } catch (error) {
@@ -280,6 +273,13 @@ export default function CalendarioPage() {
     [statsDays],
   );
 
+  const episodesFromViewedDate = useMemo(() => {
+    const todayKey = getTodayValue();
+    const viewedMonthStartKey = `${statsMonth.getFullYear()}-${`${statsMonth.getMonth() + 1}`.padStart(2, "0")}-01`;
+    const referenceDateKey = viewedMonthStartKey > todayKey ? viewedMonthStartKey : todayKey;
+    return upcomingEpisodes.filter((episode) => episode.airDate >= referenceDateKey);
+  }, [upcomingEpisodes, statsMonth]);
+
   const monthSeriesCount = useMemo(() => new Set(monthEpisodes.map((episode) => episode.seriesId)).size, [monthEpisodes]);
 
   if (!isReady) {
@@ -298,14 +298,14 @@ export default function CalendarioPage() {
       <header className="header">
         <h1>Calendario</h1>
       </header>
-      <p className="subtitle">Proximos episodios das series da sua lista.</p>
+      <p className="subtitle">Calendario de lancamentos das series da sua lista.</p>
 
       {!auth?.id ? <p className="subtitle">Faca login para ver o calendario de lancamentos.</p> : null}
-      {auth?.id && isLoading ? <p className="subtitle">Carregando proximos episodios...</p> : null}
+      {auth?.id && isLoading ? <p className="subtitle">Carregando calendario...</p> : null}
       {auth?.id && !isLoading && errorMessage ? <p className="subtitle">{errorMessage}</p> : null}
 
       {auth?.id && !isLoading && !errorMessage && !upcomingEpisodes.length ? (
-        <p className="subtitle">Nao encontramos episodios futuros para as series da sua lista.</p>
+        <p className="subtitle">Nao encontramos lancamentos para as series da sua lista.</p>
       ) : null}
 
       {auth?.id && !isLoading && !errorMessage && upcomingEpisodes.length ? (
@@ -313,7 +313,7 @@ export default function CalendarioPage() {
           <div className="calendar-overview">
             <article className="calendar-overview-card">
               <p className="calendar-overview-label">Episodios futuros</p>
-              <p className="calendar-overview-value">{upcomingEpisodes.length}</p>
+              <p className="calendar-overview-value">{episodesFromViewedDate.length}</p>
             </article>
             <article className="calendar-overview-card">
               <p className="calendar-overview-label">Neste mes</p>

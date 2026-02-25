@@ -131,6 +131,9 @@ export default function DetailMenuSections({
   const [openEpisodeDateKey, setOpenEpisodeDateKey] = useState<string | null>(null);
   const [calendarMonthStart, setCalendarMonthStart] = useState<Date>(() => startOfMonth(new Date()));
   const [previousEpisodesConfirm, setPreviousEpisodesConfirm] = useState<PreviousEpisodesConfirmState | null>(null);
+  const [isAuthResolved, setIsAuthResolved] = useState<boolean>(false);
+  const [isWatchedStateReady, setIsWatchedStateReady] = useState<boolean>(mediaType !== "tv");
+  const [autoSelectedSeasonForTmdbId, setAutoSelectedSeasonForTmdbId] = useState<string | null>(null);
 
   const castPreview = useMemo(() => cast.slice(0, 16), [cast]);
   const hasCrewInfo = directorMembers.length > 0 || writerMembers.length > 0;
@@ -157,7 +160,9 @@ export default function DetailMenuSections({
   useEffect(() => {
     if (!seasons.length) return;
     setSelectedSeasonNumber(seasons[0].seasonNumber);
-  }, [tmdbId, seasons]);
+    setAutoSelectedSeasonForTmdbId(null);
+    setIsWatchedStateReady(mediaType !== "tv");
+  }, [tmdbId, seasons, mediaType]);
 
   useEffect(() => {
     try {
@@ -170,23 +175,37 @@ export default function DetailMenuSections({
       setUserId(typeof parsed.id === "number" ? parsed.id : null);
     } catch {
       setUserId(null);
+    } finally {
+      setIsAuthResolved(true);
     }
   }, []);
 
   useEffect(() => {
+    if (!isAuthResolved) return;
+
     if (!userId) {
       setWatchedEpisodeKeys(new Set());
+      setEpisodeWatchedDates({});
+      setIsWatchedStateReady(true);
       return;
     }
 
-    if (mediaType !== "tv") return;
+    if (mediaType !== "tv") {
+      setIsWatchedStateReady(true);
+      return;
+    }
 
     async function loadWatched() {
+      setIsWatchedStateReady(false);
       try {
         const response = await fetch(
           `${API_BASE_URL}/api/user/watched?userId=${userId}&mediaType=${mediaType}&tmdbId=${tmdbId}`,
         );
-        if (!response.ok) return;
+        if (!response.ok) {
+          setWatchedEpisodeKeys(new Set());
+          setEpisodeWatchedDates({});
+          return;
+        }
         const data = (await response.json()) as WatchedItem[];
 
         const keys = new Set<string>(
@@ -205,12 +224,36 @@ export default function DetailMenuSections({
         setWatchedEpisodeKeys(keys);
         setEpisodeWatchedDates(dateByKey);
       } catch {
-        // noop
+        setWatchedEpisodeKeys(new Set());
+        setEpisodeWatchedDates({});
+      } finally {
+        setIsWatchedStateReady(true);
       }
     }
 
     void loadWatched();
-  }, [userId, mediaType, tmdbId]);
+  }, [userId, mediaType, tmdbId, isAuthResolved]);
+
+  useEffect(() => {
+    if (!isAuthResolved || mediaType !== "tv" || !seasons.length || !isWatchedStateReady) return;
+    if (autoSelectedSeasonForTmdbId === tmdbId) return;
+
+    const orderedSeasons = seasons
+      .slice()
+      .sort((a, b) => a.seasonNumber - b.seasonNumber)
+      .map((season) => ({
+        ...season,
+        episodes: season.episodes.slice().sort((a, b) => a.episodeNumber - b.episodeNumber),
+      }));
+
+    const seasonWithNextEpisode = orderedSeasons.find((season) =>
+      season.episodes.some((episode) => !watchedEpisodeKeys.has(`${season.seasonNumber}:${episode.episodeNumber}`)),
+    );
+
+    const targetSeasonNumber = seasonWithNextEpisode?.seasonNumber ?? orderedSeasons[0].seasonNumber;
+    setSelectedSeasonNumber(targetSeasonNumber);
+    setAutoSelectedSeasonForTmdbId(tmdbId);
+  }, [mediaType, seasons, isWatchedStateReady, autoSelectedSeasonForTmdbId, tmdbId, watchedEpisodeKeys, isAuthResolved]);
 
   useEffect(() => {
     if (!openEpisodeDateKey) return;
