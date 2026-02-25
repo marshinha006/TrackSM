@@ -577,9 +577,6 @@ export default function DetailMenuSections({
                 {selectedSeason ? (
                   <div className="season-panel">
                     <div className="season-heading-row">
-                      <p className="season-heading">
-                        {selectedSeason.seasonName} ({selectedSeason.episodeCount} episodios)
-                      </p>
                       <button
                         type="button"
                         className="season-mark-all-button"
