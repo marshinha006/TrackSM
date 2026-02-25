@@ -1058,7 +1058,7 @@ button.secondary {
 .season-heading-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 0.55rem;
   margin-bottom: 0.52rem;
 }
@@ -1068,6 +1068,7 @@ button.secondary {
 }
 
 .season-mark-all-button {
+  margin-left: auto;
   border: 1px solid rgba(255, 167, 167, 0.55);
   border-radius: 10px;
   background: linear-gradient(140deg, #8f0c0c, #c01818);
@@ -1326,6 +1327,8 @@ button.secondary {
   width: 100%;
   aspect-ratio: 16 / 9;
   background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px 10px 0 0;
+  overflow: hidden;
 }
 
 .season-episode-thumb {
@@ -2333,11 +2336,25 @@ button.secondary {
 }
 
 .my-series-strip.is-movies {
-  position: absolute;
-  top: calc(var(--my-series-split) + 0.1rem);
-  left: -172px;
-  right: 0;
-  margin-top: 0;
+  position: static;
+  margin-top: calc(var(--my-series-split) + 0.1rem);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 150px));
+  align-content: flex-start;
+  justify-content: flex-start;
+  overflow: visible;
+  overflow-x: visible;
+  overflow-y: visible;
+  scroll-snap-type: none;
+  overscroll-behavior-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 0;
+}
+
+.my-series-strip.is-movies .my-series-card {
+  min-width: 0;
+  width: 150px;
+  flex: initial;
 }
 
 .my-series-card {
@@ -2418,7 +2435,7 @@ button.secondary {
 }
 
 .my-series-surface.is-movies .my-series-stats-overview {
-  top: calc(var(--my-series-split) - 6.2rem);
+  top: calc(var(--my-series-split) - 8.2rem);
 }
 
 .my-series-completed-board {
@@ -2963,6 +2980,127 @@ button.secondary {
   opacity: 1;
 }
 
+@media (max-width: 1024px) {
+  .my-series-surface.is-series .my-series-mode-menu {
+    position: static;
+    top: auto;
+    transform: none;
+    margin-top: 0.6rem;
+  }
+
+  .my-series-surface.is-series .my-series-selected-layer {
+    position: static;
+    top: auto;
+    transform: none;
+    margin-top: 0.7rem;
+    margin-bottom: 0.7rem;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    pointer-events: auto;
+  }
+
+  .my-series-surface.is-series .my-series-selected-card {
+    width: min(220px, 100%);
+    margin: 0 auto;
+  }
+
+  .my-series-surface.is-series .my-series-next-episode-card {
+    width: 100%;
+    min-height: 0;
+    grid-template-columns: 1fr;
+  }
+
+  .my-series-surface.is-series .my-series-next-episode-image,
+  .my-series-surface.is-series .my-series-next-episode-image-empty {
+    min-height: 180px;
+    max-height: 260px;
+  }
+
+  .my-series-surface.is-series .my-series-strip {
+    margin-top: 0.25rem;
+  }
+
+  .my-series-surface.is-movies .my-series-mode-menu {
+    position: static;
+    top: auto;
+    transform: none;
+    margin-top: 0.6rem;
+  }
+
+  .my-series-surface.is-movies .my-series-stats-overview {
+    position: static;
+    top: auto;
+    left: auto;
+    right: auto;
+    margin-top: 0.6rem;
+    margin-bottom: 0.6rem;
+    grid-template-columns: 1fr;
+  }
+
+  .my-series-surface.is-movies .my-series-strip.is-movies {
+    margin-top: 0.25rem;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+
+  .my-series-surface.is-movies .my-series-strip.is-movies .my-series-card {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .my-series-surface.is-history .my-series-mode-menu {
+    position: static;
+    top: auto;
+    transform: none;
+    margin-top: 0.6rem;
+  }
+
+  .my-series-surface.is-history .my-series-completed-board {
+    margin-top: 0.6rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .my-series-surface.is-history .my-series-history-toolbar.is-embedded {
+    flex-wrap: wrap;
+    row-gap: 0.5rem;
+  }
+
+  .my-series-surface.is-history .my-series-completed-head,
+  .my-series-surface.is-history .my-series-completed-list {
+    min-width: 980px;
+  }
+
+  .my-series-surface.is-stats .my-series-mode-menu {
+    position: static;
+    top: auto;
+    transform: none;
+    margin-top: 0.6rem;
+  }
+
+  .my-series-surface.is-stats .my-series-stats-overview {
+    position: static;
+    top: auto;
+    left: auto;
+    right: auto;
+    margin-top: 0.6rem;
+    margin-bottom: 0.6rem;
+    grid-template-columns: 1fr;
+  }
+
+  .my-series-surface.is-stats .my-series-stats-board {
+    margin-top: 0.6rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .my-series-surface.is-stats .my-series-stats-header,
+  .my-series-surface.is-stats .my-series-stats-weekdays,
+  .my-series-surface.is-stats .my-series-stats-grid {
+    min-width: 860px;
+  }
+}
+
 @media (max-width: 760px) {
   .my-series-inner {
     min-height: auto;
@@ -3006,6 +3144,14 @@ button.secondary {
     left: auto;
     right: auto;
     margin-top: 0.2rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+    overflow: visible;
+  }
+
+  .my-series-strip.is-movies .my-series-card {
+    width: 100%;
+    min-width: 0;
   }
 
   .my-series-done {

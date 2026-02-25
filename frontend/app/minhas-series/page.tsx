@@ -117,8 +117,14 @@ function getTodayValue(): string {
 
 function formatMinutes(totalMinutes: number): string {
   if (totalMinutes <= 0) return "0 min";
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const remainderAfterDays = totalMinutes % (60 * 24);
+  const hours = Math.floor(remainderAfterDays / 60);
+  const minutes = remainderAfterDays % 60;
+
+  if (days > 0) {
+    return `${days}d ${hours}h ${minutes}min`;
+  }
   if (!hours) return `${minutes} min`;
   if (!minutes) return `${hours}h`;
   return `${hours}h ${minutes}min`;
@@ -868,7 +874,7 @@ export default function MinhasSeriesPage() {
           ) : null}
 
           {!isLoading && !errorMessage && viewMode === "movies" && movieHistory.length ? (
-            <section className="my-series-strip is-movies" aria-label="Historico de filmes vistos" onWheel={handleHorizontalWheel}>
+            <section className="my-series-strip is-movies" aria-label="Historico de filmes vistos">
               {movieHistory.map((movie) => (
                 <Link key={movie.id} href={`/detalhe/filme/${movie.id}`} className="my-series-card" aria-label={`Abrir ${movie.title}`}>
                   {movie.posterUrl ? (

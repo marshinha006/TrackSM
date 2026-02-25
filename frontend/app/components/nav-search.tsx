@@ -95,6 +95,14 @@ export default function NavSearch() {
     return `${results.length} resultado(s).`;
   }, [isLoading, error, hasQuery, results.length]);
 
+  function resetSearch() {
+    setQuery("");
+    setResults([]);
+    setError(null);
+    setIsLoading(false);
+    setIsOpen(false);
+  }
+
   return (
     <div className="nav-search" ref={wrapperRef}>
       <div className={`nav-search-input-wrap${isOpen ? " is-open" : ""}`}>
@@ -154,7 +162,7 @@ export default function NavSearch() {
                               : `/detalhe/${item.mediaType === "movie" ? "filme" : "serie"}/${item.id}`
                           }
                           className="nav-search-title-link"
-                          onClick={() => setIsOpen(false)}
+                          onClick={resetSearch}
                         >
                           {item.title}
                         </Link>

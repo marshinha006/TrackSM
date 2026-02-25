@@ -229,7 +229,7 @@ async function fetchTvSeasons(tvId: string, seasons: TmdbSeasonSummary[] | undef
     return [];
   }
 
-  const validSeasons = seasons.filter((season) => season.season_number > 0).slice(0, 20);
+  const validSeasons = seasons.filter((season) => season.season_number > 0);
   if (!validSeasons.length) return [];
 
   const details = await Promise.all(
