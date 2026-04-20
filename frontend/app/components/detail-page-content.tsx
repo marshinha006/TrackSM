@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import DetailScrollLock from "./detail-scroll-lock";
 import DetailMenuSections from "./detail-menu-sections";
+import DetailWishlistToggle from "./detail-wishlist-toggle";
 import MovieWatchToggle from "./movie-watch-toggle";
 
 type DetailGenre = {
@@ -385,8 +386,10 @@ export default async function DetailPage({ params }: { params: Promise<{ mediaTy
   const seasonsData = !isMovie ? await fetchTvSeasons(id, detail.seasons) : [];
   const runtimeText = isMovie ? formatRuntime(detail, true) : formatSeriesRuntime(detail, seasonsData);
 
+  const shouldUseAutoHeight = isMovie && Boolean(trailerKey);
+
   return (
-    <main className="detail-page">
+    <main className={`detail-page${shouldUseAutoHeight ? " is-auto-height" : ""}`}>
       <DetailScrollLock />
 
       <Link className="detail-back" href="/">
@@ -476,6 +479,7 @@ export default async function DetailPage({ params }: { params: Promise<{ mediaTy
             ) : null}
 
             {!isMovie && detail.status ? <p className="detail-extra">Status: {detail.status}</p> : null}
+            <DetailWishlistToggle tmdbId={id} mediaType={tmdbMediaType} />
           </div>
 
           {isMovie ? (

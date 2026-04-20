@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { WheelEvent, useEffect, useMemo, useRef, useState } from "react";
+import LoadingSpinner from "../components/loading-spinner";
 import { getApiBaseUrl } from "../lib/api-base-url";
 
 type StoredAuth = {
@@ -693,7 +694,7 @@ export default function MinhasSeriesPage() {
   if (!isReady) {
     return (
       <main>
-        <p className="subtitle">Carregando...</p>
+        <LoadingSpinner fullPage />
       </main>
     );
   }
@@ -732,7 +733,7 @@ export default function MinhasSeriesPage() {
             <h1>Minhas series</h1>
           </header>
 
-          {isLoading ? <p className="subtitle">Carregando progresso...</p> : null}
+          {isLoading ? <LoadingSpinner fullPage label="Carregando progresso" /> : null}
           {errorMessage ? <p className="auth-feedback is-error">{errorMessage}</p> : null}
 
           {!isLoading && !errorMessage && !seriesProgress.length ? (
@@ -784,7 +785,11 @@ export default function MinhasSeriesPage() {
               </Link>
 
               <aside className="my-series-next-episode-card" aria-label="Proximo episodio para assistir">
-                {isEpisodeLoading ? <p className="my-series-next-episode-status">Carregando proximo episodio...</p> : null}
+                {isEpisodeLoading ? (
+                  <div className="my-series-next-episode-status">
+                    <LoadingSpinner compact label="Carregando proximo episodio" />
+                  </div>
+                ) : null}
                 {!isEpisodeLoading && nextEpisodeError ? (
                   <p className="my-series-next-episode-status is-error">{nextEpisodeError}</p>
                 ) : null}

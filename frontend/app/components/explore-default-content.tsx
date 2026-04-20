@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getApiBaseUrl } from "../lib/api-base-url";
+import LoadingSpinner from "./loading-spinner";
 
 type StoredAuth = {
   id?: number;
@@ -148,7 +149,7 @@ export default function ExploreDefaultContent() {
   }, []);
 
   if (!isReady || isLoading) {
-    return <p className="subtitle">Carregando recomendações personalizadas...</p>;
+    return <LoadingSpinner fullPage label="Carregando recomendacoes personalizadas" />;
   }
 
   if (errorMessage) {

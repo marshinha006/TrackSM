@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { getApiBaseUrl } from "../lib/api-base-url";
+import LoadingSpinner from "../components/loading-spinner";
 
 type StoredAuth = {
   id?: number;
@@ -15,6 +16,10 @@ type WatchedItem = {
   seasonNumber: number;
   episodeNumber: number;
   watchedAt?: string;
+};
+
+type WishlistItem = {
+  tmdbId: number;
 };
 
 type TvSummary = {
@@ -45,6 +50,7 @@ type UpcomingEpisode = {
 };
 
 const API_BASE_URL = getApiBaseUrl();
+const WISHLIST_STORAGE_KEY = "tracksm_wishlist";
 
 function getMonthLabel(date: Date): string {
   return new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(date);
@@ -65,6 +71,19 @@ function toDateKey(input: string | null | undefined): string | null {
 
 function getTodayValue(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+function getFallbackWishlistIds(userId: number, mediaType: "movie" | "tv"): number[] {
+  try {
+    const raw = localStorage.getItem(WISHLIST_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as Record<string, number[]>;
+    const key = `${userId}:${mediaType}`;
+    const ids = parsed[key] ?? [];
+    return ids.filter((value) => Number.isInteger(value) && value > 0);
+  } catch {
+    return [];
+  }
 }
 
 function toMonthDate(dateKey: string): Date {
@@ -122,26 +141,24 @@ export default function CalendarioPage() {
       setIsLoading(true);
       setErrorMessage(null);
       try {
-        const watchedTvResponse = await fetch(`${API_BASE_URL}/api/user/watched?userId=${userId}&mediaType=tv`);
-        if (!watchedTvResponse.ok) {
+        const wishlistResponse = await fetch(`${API_BASE_URL}/api/user/wishlist?userId=${userId}&mediaType=tv`);
+        if (!wishlistResponse.ok && wishlistResponse.status !== 404) {
           throw new Error("Nao foi possivel carregar as series da sua lista.");
         }
 
-        const watchedTvItems = (await watchedTvResponse.json()) as WatchedItem[];
-        const tvWatchedEpisodes = watchedTvItems.filter((item) => item.seasonNumber > 0 && item.episodeNumber > 0);
-        if (!tvWatchedEpisodes.length) {
+        const wishlistIds = wishlistResponse.ok
+          ? ((await wishlistResponse.json()) as WishlistItem[]).map((item) => item.tmdbId).filter((value) => Number.isInteger(value) && value > 0)
+          : getFallbackWishlistIds(userId, "tv");
+
+        const watchedTvResponse = await fetch(`${API_BASE_URL}/api/user/watched?userId=${userId}&mediaType=tv`);
+        const watchedTvItems = watchedTvResponse.ok ? ((await watchedTvResponse.json()) as WatchedItem[]) : [];
+        const watchedIds = watchedTvItems.map((item) => item.tmdbId).filter((value) => Number.isInteger(value) && value > 0);
+
+        const seriesIds = Array.from(new Set([...wishlistIds, ...watchedIds]));
+        if (!seriesIds.length) {
           setUpcomingEpisodes([]);
           return;
         }
-
-        const uniqueByEpisode = new Map<string, WatchedItem>();
-        for (const item of tvWatchedEpisodes) {
-          const key = `${item.tmdbId}:${item.seasonNumber}:${item.episodeNumber}`;
-          uniqueByEpisode.set(key, item);
-        }
-        const deduped = Array.from(uniqueByEpisode.values());
-
-        const seriesIds = Array.from(new Set(deduped.map((item) => item.tmdbId)));
         const summaries: TvSummary[] = [];
         const idChunks = chunkArray(seriesIds, 40);
         for (const idsChunk of idChunks) {
@@ -154,7 +171,6 @@ export default function CalendarioPage() {
         }
 
         const summaryById = new Map<number, TvSummary>(summaries.map((summary) => [summary.id, summary]));
-        const today = getTodayValue();
 
         const upcomingBySeries = await Promise.all(
           seriesIds.map(async (seriesId) => {
@@ -196,21 +212,6 @@ export default function CalendarioPage() {
 
         setUpcomingEpisodes(flattened);
 
-        if (flattened.length > 0) {
-          const nextEpisode = flattened.find((episode) => episode.airDate >= today);
-          const referenceEpisode = nextEpisode ?? flattened[flattened.length - 1];
-          const referenceDate = toMonthDate(referenceEpisode.airDate);
-          const now = new Date();
-          const hasCurrentMonthEpisodes = flattened.some(
-            (episode) =>
-              toMonthDate(episode.airDate).getFullYear() === now.getFullYear() &&
-              toMonthDate(episode.airDate).getMonth() === now.getMonth(),
-          );
-
-          if (!hasCurrentMonthEpisodes) {
-            setStatsMonth(new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1));
-          }
-        }
       } catch (error) {
         setErrorMessage(error instanceof Error ? error.message : "Falha ao carregar calendario.");
         setUpcomingEpisodes([]);
@@ -244,6 +245,7 @@ export default function CalendarioPage() {
   }, [upcomingEpisodes]);
 
   const statsDays = useMemo(() => {
+    const todayKey = getTodayValue();
     const firstOfMonth = new Date(statsMonth.getFullYear(), statsMonth.getMonth(), 1);
     const firstWeekday = firstOfMonth.getDay();
     const firstCellDate = new Date(firstOfMonth);
@@ -259,6 +261,7 @@ export default function CalendarioPage() {
         date: dayDate,
         key: dayKey,
         isCurrentMonth: dayDate.getMonth() === statsMonth.getMonth(),
+        isToday: dayKey === todayKey,
         episodes: items,
       };
     });
@@ -288,7 +291,7 @@ export default function CalendarioPage() {
         <header className="header">
           <h1>Calendario</h1>
         </header>
-        <p className="subtitle">Carregando...</p>
+        <LoadingSpinner fullPage label="Carregando calendario" />
       </main>
     );
   }
@@ -301,7 +304,7 @@ export default function CalendarioPage() {
       <p className="subtitle">Calendario de lancamentos das series da sua lista.</p>
 
       {!auth?.id ? <p className="subtitle">Faca login para ver o calendario de lancamentos.</p> : null}
-      {auth?.id && isLoading ? <p className="subtitle">Carregando calendario...</p> : null}
+      {auth?.id && isLoading ? <LoadingSpinner fullPage label="Carregando calendario" /> : null}
       {auth?.id && !isLoading && errorMessage ? <p className="subtitle">{errorMessage}</p> : null}
 
       {auth?.id && !isLoading && !errorMessage && !upcomingEpisodes.length ? (
@@ -358,8 +361,11 @@ export default function CalendarioPage() {
 
             <div className="my-series-stats-grid">
               {statsDays.map((day) => (
-                <article key={day.key} className={`my-series-stats-day${day.isCurrentMonth ? "" : " is-outside"}`}>
-                  <span className="my-series-stats-day-number">{day.date.getDate()}</span>
+                <article
+                  key={day.key}
+                  className={`my-series-stats-day${day.isCurrentMonth ? "" : " is-outside"}${day.isToday ? " is-today" : ""}`}
+                >
+                  <span className={`my-series-stats-day-number${day.isToday ? " is-today" : ""}`}>{day.date.getDate()}</span>
 
                   {day.episodes.length > 0 ? (
                     <div className="calendar-day-content">

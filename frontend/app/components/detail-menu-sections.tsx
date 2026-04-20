@@ -41,6 +41,13 @@ type SeasonPanelData = {
 };
 
 type ActiveSection = "cast" | "watch" | "seasons" | null;
+type RecommendationItem = {
+  id: number;
+  title?: string;
+  name?: string;
+  poster_path: string | null;
+  vote_average: number;
+};
 type StoredAuth = {
   id?: number;
 };
@@ -57,6 +64,7 @@ type PreviousEpisodesConfirmState = {
 
 const API_BASE_URL = getApiBaseUrl();
 const WEEKDAY_LABELS = ["D", "S", "T", "Q", "Q", "S", "S"];
+const TMDB_POSTER_URL = "https://image.tmdb.org/t/p/w500";
 
 function getTodayValue(): string {
   return new Date().toISOString().slice(0, 10);
@@ -134,6 +142,7 @@ export default function DetailMenuSections({
   const [isAuthResolved, setIsAuthResolved] = useState<boolean>(false);
   const [isWatchedStateReady, setIsWatchedStateReady] = useState<boolean>(mediaType !== "tv");
   const [autoSelectedSeasonForTmdbId, setAutoSelectedSeasonForTmdbId] = useState<string | null>(null);
+  const [recommendations, setRecommendations] = useState<RecommendationItem[]>([]);
 
   const castPreview = useMemo(() => cast.slice(0, 16), [cast]);
   const hasCrewInfo = directorMembers.length > 0 || writerMembers.length > 0;
@@ -278,6 +287,37 @@ export default function DetailMenuSections({
       document.removeEventListener("keydown", handleEsc);
     };
   }, [openEpisodeDateKey]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadRecommendations() {
+      try {
+        const response = await fetch(`/api/tmdb/recommendations?mediaType=${mediaType}&ids=${tmdbId}`);
+        if (!response.ok) {
+          if (!cancelled) setRecommendations([]);
+          return;
+        }
+
+        const data = (await response.json()) as RecommendationItem[];
+        if (!cancelled) {
+          setRecommendations(
+            data
+              .filter((item) => item.poster_path)
+              .slice(0, 21),
+          );
+        }
+      } catch {
+        if (!cancelled) setRecommendations([]);
+      }
+    }
+
+    void loadRecommendations();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mediaType, tmdbId]);
 
   function getEpisodeWatchedDate(key: string): string {
     return episodeWatchedDates[key] || getTodayValue();
@@ -785,6 +825,42 @@ export default function DetailMenuSections({
             )}
           </div>
         ) : null}
+
+        <section className="detail-recommendations-card" aria-label="Recomendacoes">
+          <div className="detail-recommendations-head">
+            <p className="detail-recommendations-kicker">Sugestoes</p>
+            <h2 className="detail-recommendations-title">
+              Recomendacoes de {mediaType === "tv" ? "series" : "filmes"}
+            </h2>
+          </div>
+
+          {recommendations.length ? (
+            <div className="detail-recommendations-strip" role="list">
+              {recommendations.map((item) => {
+                const itemTitle = (item.title ?? item.name ?? "Sem titulo").trim() || "Sem titulo";
+                const href = `/detalhe/${mediaType === "tv" ? "serie" : "filme"}/${item.id}`;
+
+                return (
+                  <Link key={item.id} href={href} className="detail-recommendation-item detail-recommendation-link" role="listitem" title={itemTitle}>
+                    {item.poster_path ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        className="detail-recommendation-poster"
+                        src={`${TMDB_POSTER_URL}${item.poster_path}`}
+                        alt={`Capa de ${itemTitle}`}
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="detail-recommendation-poster detail-recommendation-poster-empty" aria-hidden="true" />
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="detail-expandable-empty">Nao foi possivel carregar recomendacoes para este titulo.</p>
+          )}
+        </section>
       </div>
       {previousEpisodesConfirm ? (
         <div className="episode-confirm-overlay" role="presentation" onClick={closePreviousEpisodesConfirm}>

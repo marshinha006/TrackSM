@@ -107,6 +107,19 @@ type WatchedItem struct {
 	WatchedAt     string `json:"watchedAt"`
 }
 
+type WishlistInput struct {
+	UserID    int64  `json:"userId"`
+	MediaType string `json:"mediaType"`
+	TmdbID    int64  `json:"tmdbId"`
+}
+
+type WishlistItem struct {
+	UserID    int64  `json:"userId"`
+	MediaType string `json:"mediaType"`
+	TmdbID    int64  `json:"tmdbId"`
+	CreatedAt string `json:"createdAt"`
+}
+
 var usernamePattern = regexp.MustCompile(`^[a-z0-9._]{3,30}$`)
 
 func NewStore() *Store {
@@ -161,6 +174,9 @@ func main() {
 	if err := ensureWatchedTable(db); err != nil {
 		log.Fatal(err)
 	}
+	if err := ensureWishlistTable(db); err != nil {
+		log.Fatal(err)
+	}
 
 	app := &App{store: store, db: db}
 	mux := http.NewServeMux()
@@ -179,6 +195,9 @@ func main() {
 	mux.HandleFunc("GET /api/user/watched", app.handleListWatched)
 	mux.HandleFunc("POST /api/user/watched", app.handleUpsertWatched)
 	mux.HandleFunc("DELETE /api/user/watched", app.handleDeleteWatched)
+	mux.HandleFunc("GET /api/user/wishlist", app.handleListWishlist)
+	mux.HandleFunc("POST /api/user/wishlist", app.handleUpsertWishlist)
+	mux.HandleFunc("DELETE /api/user/wishlist", app.handleDeleteWishlist)
 
 	addr := ":8080"
 	log.Printf("API running on http://localhost%s", addr)
@@ -257,6 +276,25 @@ func ensureWatchedTable(db *sql.DB) error {
 
 	if _, err := db.Exec(query); err != nil {
 		return fmt.Errorf("failed creating watched_items table: %w", err)
+	}
+
+	return nil
+}
+
+func ensureWishlistTable(db *sql.DB) error {
+	query := `
+    CREATE TABLE IF NOT EXISTS wishlist_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        media_type TEXT NOT NULL,
+        tmdb_id INTEGER NOT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, media_type, tmdb_id)
+    );
+    `
+
+	if _, err := db.Exec(query); err != nil {
+		return fmt.Errorf("failed creating wishlist_items table: %w", err)
 	}
 
 	return nil
@@ -585,6 +623,20 @@ func normalizeWatchedAt(raw string) (string, error) {
 	return "", fmt.Errorf("invalid watchedAt")
 }
 
+func normalizeWishlistInput(in *WishlistInput) error {
+	in.MediaType = strings.ToLower(strings.TrimSpace(in.MediaType))
+	if in.UserID <= 0 {
+		return fmt.Errorf("userId is required")
+	}
+	if in.TmdbID <= 0 {
+		return fmt.Errorf("tmdbId is required")
+	}
+	if in.MediaType != "movie" && in.MediaType != "tv" {
+		return fmt.Errorf("mediaType must be movie or tv")
+	}
+	return nil
+}
+
 func (a *App) handleUpsertWatched(w http.ResponseWriter, r *http.Request) {
 	var in WatchedInput
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
@@ -728,6 +780,122 @@ func (a *App) handleListWatched(w http.ResponseWriter, r *http.Request) {
 			&item.WatchedAt,
 		); scanErr != nil {
 			writeError(w, http.StatusInternalServerError, "failed reading watched items")
+			return
+		}
+		out = append(out, item)
+	}
+
+	writeJSON(w, http.StatusOK, out)
+}
+
+func (a *App) handleUpsertWishlist(w http.ResponseWriter, r *http.Request) {
+	var in WishlistInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json body")
+		return
+	}
+
+	if err := normalizeWishlistInput(&in); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	_, err := a.db.Exec(
+		`INSERT INTO wishlist_items (user_id, media_type, tmdb_id)
+         VALUES (?, ?, ?)
+         ON CONFLICT(user_id, media_type, tmdb_id) DO NOTHING`,
+		in.UserID,
+		in.MediaType,
+		in.TmdbID,
+	)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to save wishlist item")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+func (a *App) handleDeleteWishlist(w http.ResponseWriter, r *http.Request) {
+	var in WishlistInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json body")
+		return
+	}
+
+	if err := normalizeWishlistInput(&in); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	_, err := a.db.Exec(
+		`DELETE FROM wishlist_items
+         WHERE user_id = ? AND media_type = ? AND tmdb_id = ?`,
+		in.UserID,
+		in.MediaType,
+		in.TmdbID,
+	)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to delete wishlist item")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (a *App) handleListWishlist(w http.ResponseWriter, r *http.Request) {
+	userID, err := strconv.ParseInt(strings.TrimSpace(r.URL.Query().Get("userId")), 10, 64)
+	if err != nil || userID <= 0 {
+		writeError(w, http.StatusBadRequest, "userId is required")
+		return
+	}
+
+	mediaType := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("mediaType")))
+	if mediaType != "movie" && mediaType != "tv" {
+		writeError(w, http.StatusBadRequest, "mediaType must be movie or tv")
+		return
+	}
+
+	tmdbRaw := strings.TrimSpace(r.URL.Query().Get("tmdbId"))
+	var tmdbID int64
+	if tmdbRaw != "" {
+		parsedTmdbID, parseErr := strconv.ParseInt(tmdbRaw, 10, 64)
+		if parseErr != nil || parsedTmdbID <= 0 {
+			writeError(w, http.StatusBadRequest, "invalid tmdbId")
+			return
+		}
+		tmdbID = parsedTmdbID
+	}
+
+	query := `SELECT user_id, media_type, tmdb_id, created_at
+              FROM wishlist_items
+              WHERE user_id = ? AND media_type = ?`
+	args := []any{userID, mediaType}
+
+	if tmdbID > 0 {
+		query += " AND tmdb_id = ?"
+		args = append(args, tmdbID)
+	}
+
+	query += " ORDER BY created_at DESC"
+
+	rows, err := a.db.Query(query, args...)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to list wishlist items")
+		return
+	}
+	defer rows.Close()
+
+	out := make([]WishlistItem, 0)
+	for rows.Next() {
+		var item WishlistItem
+		if scanErr := rows.Scan(
+			&item.UserID,
+			&item.MediaType,
+			&item.TmdbID,
+			&item.CreatedAt,
+		); scanErr != nil {
+			writeError(w, http.StatusInternalServerError, "failed reading wishlist items")
 			return
 		}
 		out = append(out, item)

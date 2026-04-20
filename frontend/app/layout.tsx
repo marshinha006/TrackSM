@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Space_Grotesk } from "next/font/google";
 import Link from "next/link";
 import NavAuth from "./components/nav-auth";
+import NavMyList from "./components/nav-my-list";
 import NavSearch from "./components/nav-search";
 import "./globals.css";
 
@@ -34,6 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Link href="/explorar" className="nav-link">
                 Explorar
               </Link>
+              <NavMyList />
             </div>
             <Link href="/" className="brand-link" aria-label="TrackSM - pagina inicial">
               {/* eslint-disable-next-line @next/next/no-img-element */}
