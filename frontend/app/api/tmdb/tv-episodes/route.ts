@@ -71,7 +71,9 @@ export async function GET(request: NextRequest) {
   }
 
   const tvData = (await tvResponse.json()) as TmdbTvDetail;
-  const seasons = (tvData.seasons ?? []).map((season) => season.season_number).filter((season) => season > 0).slice(0, 25);
+  const seasons = (tvData.seasons ?? [])
+    .map((season) => season.season_number)
+    .filter((season) => season > 0);
   if (!seasons.length) {
     return NextResponse.json([], { status: 200 });
   }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import ExploreDefaultContent from "../components/explore-default-content";
 
 type TmdbItem = {
   id: number;
@@ -88,7 +89,7 @@ export default async function ExplorarPage({
         <header className="header">
           <h1>Explorar</h1>
         </header>
-        <p className="subtitle">Selecione um genero na pagina de detalhes para ver filmes ou series parecidos.</p>
+        <ExploreDefaultContent />
       </main>
     );
   }

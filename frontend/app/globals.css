@@ -795,6 +795,57 @@ h1 {
   color: var(--muted);
 }
 
+.loading-state {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem 0;
+}
+
+.loading-state.is-page {
+  min-height: clamp(220px, 55vh, 620px);
+}
+
+.loading-state.is-compact {
+  min-height: 0;
+  padding: 0;
+}
+
+.loading-spinner {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 4px solid rgba(238, 244, 255, 0.28);
+  border-top-color: #f2f7ff;
+  border-right-color: #8d0c0a;
+  animation: loading-spin 850ms linear infinite;
+}
+
+.loading-spinner.is-small {
+  width: 26px;
+  height: 26px;
+  border-width: 3px;
+}
+
+@keyframes loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 section + section {
   margin-top: 2rem;
 }
@@ -975,6 +1026,97 @@ button.secondary {
   margin: 0;
   color: #dbe5ff;
   font-size: 0.95rem;
+}
+
+.detail-recommendations-card {
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  padding: 0.85rem 0.7rem 0.75rem;
+}
+
+.detail-recommendations-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.55rem;
+  margin-bottom: 0.55rem;
+}
+
+.detail-recommendations-kicker {
+  margin: 0;
+  color: #f6cf8d;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.detail-recommendations-title {
+  margin: 0;
+  color: #f2f6ff;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.detail-recommendations-strip {
+  --rec-gap: 0.5rem;
+  --rec-visible: 4;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--rec-gap);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(186, 198, 226, 0.72) rgba(255, 255, 255, 0.08);
+  padding-bottom: 0.25rem;
+}
+
+.detail-recommendations-strip::-webkit-scrollbar {
+  height: 8px;
+}
+
+.detail-recommendations-strip::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+}
+
+.detail-recommendations-strip::-webkit-scrollbar-thumb {
+  background: rgba(186, 198, 226, 0.72);
+  border-radius: 999px;
+}
+
+.detail-recommendation-item {
+  flex: 0 0 auto;
+  width: auto;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.18s ease, border-color 0.18s ease;
+}
+
+.detail-recommendation-item:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.36);
+}
+
+.detail-recommendation-link {
+  display: inline-block;
+  text-decoration: none;
+  background: transparent;
+}
+
+.detail-recommendation-poster {
+  width: auto;
+  height: clamp(180px, 24vw, 320px);
+  object-fit: contain;
+  object-position: center;
+  display: block;
+}
+
+.detail-recommendation-poster-empty {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.05));
 }
 
 .detail-watch-player {
@@ -1320,7 +1462,7 @@ button.secondary {
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 210px;
+  min-height: 224px;
 }
 
 .season-episode-thumb-wrap {
@@ -1380,7 +1522,7 @@ button.secondary {
   font-size: 0.8rem;
   line-height: 1.35;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -1396,9 +1538,13 @@ button.secondary {
     gap: 0.42rem;
   }
 
+  .season-episode-card {
+    min-height: 236px;
+  }
+
   .season-episode-body {
     padding: 0.42rem 0.44rem 0.5rem;
-    min-height: 102px;
+    min-height: 124px;
   }
 
   .season-episode-title {
@@ -1419,7 +1565,13 @@ button.secondary {
   }
 
   .season-episode-overview {
-    display: none;
+    margin-top: 0.22rem;
+    font-size: 0.68rem;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 }
 
@@ -1612,6 +1764,49 @@ button.secondary {
   max-width: 80ch;
 }
 
+.detail-wishlist {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.detail-wishlist-button {
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f1f6ff;
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 0.42rem 0.72rem;
+}
+
+.detail-wishlist-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.detail-wishlist-button.is-added {
+  border-color: rgba(255, 177, 177, 0.68);
+  background: linear-gradient(140deg, #8f0c0c, #c01818);
+  color: #fff2f2;
+}
+
+.detail-wishlist-button.is-added:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.detail-wishlist-button:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+
+.detail-wishlist-help {
+  margin: 0;
+  color: #dce6ff;
+  font-size: 0.78rem;
+}
+
 .detail-trailer {
   margin-top: 1rem;
 }
@@ -1754,16 +1949,9 @@ button.secondary {
 }
 
 @media (min-width: 1024px) {
-  body.detail-scroll-lock {
-    overflow: hidden;
-  }
-
-  body.detail-scroll-lock.detail-scroll-unlocked {
-    overflow: auto;
-  }
-
   .detail-page {
-    height: calc(100vh - 56px);
+    height: auto;
+    min-height: calc(100vh - 56px);
     padding: 0.45rem 1rem 0.65rem;
     display: flex;
     flex-direction: column;
@@ -1775,16 +1963,15 @@ button.secondary {
   }
 
   .detail-hero {
-    flex: 1;
-    min-height: 0;
+    flex: none;
   }
 
   .detail-content {
-    height: 100%;
+    height: auto;
     grid-template-columns: 225px minmax(0, 1fr) 126px;
     gap: 1rem;
     padding: 0.9rem;
-    align-items: center;
+    align-items: start;
   }
 
   .detail-title {
@@ -1858,13 +2045,18 @@ button.secondary {
     max-height: none;
   }
 
-  body.detail-scroll-lock.detail-scroll-unlocked .detail-page {
+  .detail-page.is-auto-height {
     height: auto;
     min-height: calc(100vh - 56px);
   }
 
-  body.detail-scroll-lock.detail-scroll-unlocked .detail-hero {
+  .detail-page.is-auto-height .detail-hero {
     flex: none;
+  }
+
+  body.detail-scroll-lock.detail-scroll-unlocked .detail-page {
+    height: auto;
+    min-height: calc(100vh - 56px);
   }
 }
 
@@ -2081,6 +2273,103 @@ button.secondary {
   }
 }
 
+.my-list-page {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 1rem 1rem 3rem;
+}
+
+.my-list-header h1 {
+  margin: 0;
+  font-size: clamp(1.8rem, 3vw, 2.4rem);
+}
+
+.my-list-header .subtitle {
+  margin-top: 0.4rem;
+}
+
+.my-list-board {
+  margin-top: 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+  background: linear-gradient(165deg, rgba(9, 16, 30, 0.8), rgba(10, 12, 24, 0.68));
+  padding: 0.75rem;
+}
+
+.my-list-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+}
+
+.my-list-tab {
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f1f5ff;
+  font-size: 0.9rem;
+  font-weight: 800;
+  padding: 0.52rem 0.65rem;
+}
+
+.my-list-tab.is-active {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.48);
+}
+
+.my-list-empty {
+  margin: 0.85rem 0.2rem 0.1rem;
+  color: #d7e3ff;
+  font-size: 0.95rem;
+}
+
+.my-list-grid {
+  margin-top: 0.85rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 0.75rem;
+}
+
+.my-list-card-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.my-list-card {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.05);
+  transition: transform 0.18s ease, border-color 0.18s ease;
+}
+
+.my-list-card-link:hover .my-list-card {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.34);
+}
+
+.my-list-card-image {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  display: block;
+}
+
+.my-list-card-image-empty {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.05));
+}
+
+.my-list-card-title {
+  margin: 0;
+  color: #edf3ff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 0.55rem 0.58rem 0.62rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .my-series-page .header {
   margin-bottom: 0.65rem;
 }
@@ -2234,7 +2523,7 @@ button.secondary {
 .my-series-next-episode-card {
   pointer-events: auto;
   width: min(660px, calc(100vw - 300px));
-  min-height: 220px;
+  height: 300px;
   border-radius: 12px;
   border: 1px solid rgba(192, 214, 255, 0.32);
   background: #15233a;
@@ -2253,7 +2542,7 @@ button.secondary {
 }
 
 .my-series-next-episode-image-empty {
-  min-height: 220px;
+  height: 100%;
   background: linear-gradient(130deg, #1e2c45, #2e456f);
 }
 
@@ -2261,6 +2550,11 @@ button.secondary {
   padding: 0.85rem 0.9rem 0.75rem;
   color: #18253b;
   background: linear-gradient(150deg, rgba(203, 210, 220, 0.96), rgba(196, 202, 214, 0.9));
+  min-height: 0;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  row-gap: 0.55rem;
 }
 
 .my-series-next-episode-title {
@@ -2275,25 +2569,28 @@ button.secondary {
 }
 
 .my-series-next-episode-date {
-  margin: 0.35rem 0 0;
+  margin: 0;
   font-size: 0.86rem;
   font-weight: 600;
   color: #3a4a67;
 }
 
 .my-series-next-episode-overview {
-  margin: 0.75rem 0 0;
+  margin: 0;
   font-size: 0.9rem;
   line-height: 1.4;
   color: #1f2d45;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.2rem;
 }
 
 .my-series-next-episode-date-field {
-  margin-top: 0.65rem;
+  margin-top: 0;
 }
 
 .my-series-next-episode-action {
-  margin-top: 0.85rem;
+  margin-top: 0;
   border: none;
   border-radius: 8px;
   background: #8d0c0a;
@@ -2875,12 +3172,28 @@ button.secondary {
   opacity: 0.5;
 }
 
+.my-series-stats-day.is-today {
+  background: linear-gradient(180deg, rgba(206, 32, 32, 0.08), rgba(206, 32, 32, 0));
+}
+
 .my-series-stats-day-number {
   display: block;
   text-align: right;
   color: #2b4266;
   font-size: 0.8rem;
   font-weight: 600;
+}
+
+.my-series-stats-day-number.is-today {
+  width: 1.9rem;
+  height: 1.9rem;
+  margin-left: auto;
+  border-radius: 999px;
+  background: linear-gradient(140deg, #9b0f0f, #d21a1a);
+  color: #fff;
+  line-height: 1.9rem;
+  text-align: center;
+  box-shadow: 0 10px 24px rgba(155, 15, 15, 0.24);
 }
 
 .my-series-stats-day-content {
@@ -3007,6 +3320,7 @@ button.secondary {
 
   .my-series-surface.is-series .my-series-next-episode-card {
     width: 100%;
+    height: auto;
     min-height: 0;
     grid-template-columns: 1fr;
   }
@@ -3125,6 +3439,7 @@ button.secondary {
 
   .my-series-next-episode-card {
     width: 100%;
+    height: auto;
     grid-template-columns: 1fr;
   }
 
@@ -3333,6 +3648,19 @@ button.secondary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .my-list-page {
+    padding: 0.9rem 0.75rem 2.2rem;
+  }
+
+  .my-list-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
+  }
+
+  .my-list-card-title {
+    font-size: 0.82rem;
+  }
+
   .detail-content {
     grid-template-columns: 1fr;
   }
@@ -3405,3 +3733,154 @@ button.secondary {
   }
 }
 
+.calendar-shell {
+  margin-top: 1rem;
+}
+
+.calendar-overview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin-bottom: 0.7rem;
+}
+
+.calendar-overview-card {
+  border-radius: 12px;
+  border: 1px solid rgba(179, 197, 226, 0.3);
+  background: linear-gradient(140deg, rgba(10, 22, 41, 0.84), rgba(7, 16, 31, 0.74));
+  padding: 0.7rem 0.9rem;
+}
+
+.calendar-overview-label {
+  margin: 0;
+  color: #8d0c0a;
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.calendar-overview-value {
+  margin: 0.35rem 0 0;
+  color: #f4f8ff;
+  font-size: 1.2rem;
+  font-weight: 900;
+}
+
+.calendar-board {
+  margin-top: 0;
+}
+
+.calendar-day-content {
+  margin-top: 0.25rem;
+}
+
+.calendar-day-count {
+  margin: 0.2rem 0 0;
+  color: #29466f;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.calendar-day-list {
+  list-style: none;
+  margin: 0.2rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.12rem;
+}
+
+.calendar-day-item-link {
+  color: #223f66;
+  font-size: 0.67rem;
+  font-weight: 700;
+  line-height: 1.18;
+  text-decoration: none;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calendar-day-item-link:hover {
+  color: #8d0c0a;
+}
+
+.calendar-day-more {
+  margin: 0.14rem 0 0;
+  color: #3d597f;
+  font-size: 0.64rem;
+  font-weight: 700;
+}
+
+.calendar-upcoming {
+  margin-top: 0.8rem;
+}
+
+.calendar-upcoming-title {
+  margin: 0;
+  color: #f1f5ff;
+  font-size: 1rem;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.calendar-upcoming-list {
+  list-style: none;
+  margin: 0.55rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.calendar-upcoming-item {
+  border-radius: 10px;
+  border: 1px solid rgba(190, 205, 235, 0.22);
+  background: rgba(8, 18, 33, 0.68);
+  padding: 0.5rem 0.58rem;
+}
+
+.calendar-upcoming-date {
+  display: block;
+  color: #8ca4ce;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.calendar-upcoming-link {
+  margin-top: 0.16rem;
+  display: block;
+  color: #e7f0ff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.calendar-upcoming-link:hover {
+  color: #ffcfb3;
+}
+
+@media (max-width: 760px) {
+  .calendar-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .calendar-board {
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .calendar-board .my-series-stats-header,
+  .calendar-board .my-series-stats-weekdays,
+  .calendar-board .my-series-stats-grid {
+    min-width: 860px;
+  }
+
+  .calendar-upcoming-title {
+    font-size: 0.94rem;
+  }
+
+  .calendar-upcoming-link {
+    font-size: 0.78rem;
+  }
+}
